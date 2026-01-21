@@ -8,9 +8,23 @@ The Authentication Service handles user authentication, authorization, and token
 
 ## Authentication Flow
 
+### Password-Based Login Flow
+
+Users can login using email and password:
+
+```
+1. User provides email and password
+   ↓
+2. System validates credentials
+   ↓
+3. System verifies password hash
+   ↓
+4. System issues Access Token + Refresh Token
+```
+
 ### OTP-Based Login Flow
 
-The authentication process uses a two-step OTP (One-Time Password) verification:
+The authentication process also supports OTP (One-Time Password) verification:
 
 ```
 1. User initiates login with email/phone
@@ -30,7 +44,79 @@ The authentication process uses a two-step OTP (One-Time Password) verification:
 
 ## API Endpoints
 
-### 1. Request OTP (Step 1)
+### 1. Register User
+
+**Endpoint:** `POST /auth/register`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+1234567890"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "user-uuid",
+  "email": "user@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "isActive": true,
+  "isVerified": false,
+  "createdAt": "2026-01-22T00:00:00.000Z"
+}
+```
+
+**Business Rules:**
+- Email must be unique
+- Password must be at least 8 characters
+- Password is hashed with bcrypt before storage
+- User is assigned default 'user' role automatically
+- User is created as active but not verified
+
+---
+
+### 2. Login with Password
+
+**Endpoint:** `POST /auth/login`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Success Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "user-uuid",
+    "email": "user@example.com",
+    "roles": ["user"]
+  },
+  "expiresIn": 3600
+}
+```
+
+**Business Rules:**
+- Validates email and password
+- Password verification using bcrypt
+- Updates last_login_at timestamp
+- Returns access and refresh tokens
+- User must have password set (OTP-only users cannot use this endpoint)
+
+---
+
+### 3. Request OTP (Step 1)
 
 **Endpoint:** `POST /auth/login/request-otp`
 
@@ -59,7 +145,7 @@ The authentication process uses a two-step OTP (One-Time Password) verification:
 
 ---
 
-### 2. Verify OTP (Step 2)
+### 4. Verify OTP (Step 2)
 
 **Endpoint:** `POST /auth/login/verify-otp`
 
@@ -104,7 +190,7 @@ The authentication process uses a two-step OTP (One-Time Password) verification:
 
 ---
 
-### 3. Refresh Access Token
+### 5. Refresh Access Token
 
 **Endpoint:** `POST /auth/refresh`
 
@@ -136,7 +222,7 @@ The authentication process uses a two-step OTP (One-Time Password) verification:
 
 ---
 
-### 4. Logout
+### 6. Logout
 
 **Endpoint:** `POST /auth/logout`
 
@@ -162,7 +248,28 @@ Authorization: Bearer <access_token>
 
 ---
 
-### 5. Validate Token
+### 7. Get Profile
+
+**Endpoint:** `GET /auth/profile`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+```json
+{
+  "userId": "user-uuid",
+  "email": "user@example.com",
+  "roles": ["user"],
+  "permissions": ["users:read", "content:read"]
+}
+```
+
+---
+
+### 8. Validate Token
 
 **Endpoint:** `GET /auth/validate`
 
@@ -662,6 +769,62 @@ CREATE TABLE access_tokens (
 
 ---
 
+## RBAC Endpoints
+
+### Roles Management (Admin Only)
+
+**Base Path:** `/roles`
+
+- `GET /roles` - Get all roles (with permissions)
+- `GET /roles/:id` - Get role by ID
+- `POST /roles` - Create a new role
+- `PUT /roles/:id` - Update a role
+- `DELETE /roles/:id` - Delete a role
+- `POST /roles/:id/permissions` - Assign permissions to a role
+
+**All endpoints require:** `Authorization: Bearer <admin_access_token>`
+
+### Permissions Management (Admin Only)
+
+**Base Path:** `/permissions`
+
+- `GET /permissions` - Get all permissions
+- `GET /permissions/:id` - Get permission by ID
+- `POST /permissions` - Create a new permission
+- `PUT /permissions/:id` - Update a permission
+- `DELETE /permissions/:id` - Delete a permission
+
+**All endpoints require:** `Authorization: Bearer <admin_access_token>`
+
+---
+
+## Database Schema Updates
+
+### Users Table
+
+The authentication service includes a `users` table:
+
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255),  -- Nullable for OTP-only users
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  phone VARCHAR(255),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_verified BOOLEAN NOT NULL DEFAULT false,
+  last_login_at TIMESTAMP,
+  deleted_at TIMESTAMP,  -- Soft delete
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+**Note:** `password_hash` is nullable to support OTP-only users. Users can register with password or use OTP-based login.
+
+---
+
 ## Notes
 
 - OTP is sent via email/SMS (implementation depends on service providers)
@@ -672,3 +835,6 @@ CREATE TABLE access_tokens (
 - Consider implementing token refresh middleware for automatic renewal
 - Refresh tokens are hashed before storage (similar to passwords)
 - Cleanup job should remove expired tokens periodically
+- Users can login via password OR OTP (flexible authentication)
+- RBAC endpoints require admin role for management
+- Seed file (`prisma/seed.sql`) includes admin user for initial setup
