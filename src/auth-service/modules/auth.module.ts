@@ -23,11 +23,19 @@ import { SesProvider } from '../providers/email/ses.provider';
   imports: [
     ConfigModule,
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-      signOptions: {
-        expiresIn: '3600s',
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET') || 'your-secret-key-change-in-production';
+        console.log('[AuthModule] JwtModule.registerAsync() - JWT_SECRET configured');
+        return {
+          secret: jwtSecret,
+          signOptions: {
+            expiresIn: '3600s',
+          },
+        };
       },
+      inject: [ConfigService],
     }),
   ],
         controllers: [AuthController, RolesController, PermissionsController],

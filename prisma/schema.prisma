@@ -1,5 +1,5 @@
-// Prisma Schema for Auth Service
-// Database: unified_faith_auth
+// Prisma Schema for Unified Faith Service
+// Databases: unified_faith_auth (auth tables), unified_faith_users (user tables)
 
 generator client {
   provider = "prisma-client-js"
@@ -150,4 +150,73 @@ model RefreshToken {
   @@index([userId, isRevoked, expiresAt])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// ============================================
+// User Profile (Users Service)
+// Database: unified_faith_users
+// ============================================
+
+model UserProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique @map("user_id") // References auth.users.id (cross-database)
+  avatarUrl   String?   @map("avatar_url")
+  bio         String?
+  dateOfBirth DateTime? @map("date_of_birth")
+  gender      String? // 'male', 'female', 'other', 'prefer_not_to_say'
+  address     Json? // { street, city, state, zip, country }
+  socialLinks Json?     @map("social_links") // { facebook, instagram, twitter }
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("user_profiles")
+}
+
+// ============================================
+// User Preferences (Users Service)
+// Database: unified_faith_users
+// ============================================
+
+model UserPreference {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique @map("user_id") // References auth.users.id (cross-database)
+  faith                   String? // 'hindu', 'muslim', 'christian', 'jain', 'sikh', 'buddhist'
+  language                String? // 'en', 'hi', 'ta', 'te', 'kn', 'ml', 'mr', 'gu', 'bn', 'pa'
+  countryCode             String?  @map("country_code") // ISO 3166-1 alpha-2
+  timezone                String? // IANA timezone
+  notificationPreferences Json?    @default("{}") @map("notification_preferences")
+  contentPreferences      Json?    @default("{}") @map("content_preferences")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([faith])
+  @@index([language])
+  @@index([countryCode])
+  @@map("user_preferences")
+}
+
+// ============================================
+// Device Tokens (FCM/APNS) for Push Notifications
+// Database: unified_faith_users
+// ============================================
+
+model DeviceToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id") // References auth.users.id (cross-database)
+  token      String // FCM token or APNS device token
+  platform   String // 'android', 'ios', 'web'
+  deviceId   String?   @map("device_id") // Unique device identifier
+  deviceName String?   @map("device_name") // User-friendly device name
+  isActive   Boolean   @default(true) @map("is_active")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, token]) // One token per user (can update existing)
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([token])
+  @@map("device_tokens")
 }

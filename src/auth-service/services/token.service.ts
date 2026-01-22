@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +8,7 @@ import { JwtPayload } from '../dto/jwt-payload.dto';
 
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
   private readonly accessTokenExpiresIn: number;
   private readonly refreshTokenExpiresIn: number;
 
@@ -24,7 +25,9 @@ export class TokenService {
    * Generate access token (JWT)
    */
   async generateAccessToken(payload: JwtPayload): Promise<string> {
-    return this.jwtService.sign(
+    this.logger.log(`Generating access token for user: ${payload.email} (${payload.sub})`);
+    
+    const token = this.jwtService.sign(
       {
         ...payload,
         type: 'access',
@@ -33,6 +36,22 @@ export class TokenService {
         expiresIn: this.accessTokenExpiresIn,
       },
     );
+    
+    // Verify the token can be decoded with the same secret (sanity check)
+    try {
+      const decoded = this.jwtService.verify(token);
+      this.logger.debug(
+        `Access token generated and verified successfully for ${payload.email}. ` +
+        `Token expires at: ${decoded.exp ? new Date(decoded.exp * 1000).toISOString() : 'N/A'}`
+      );
+    } catch (verifyError) {
+      this.logger.error(
+        `CRITICAL: Generated token cannot be verified with same secret! ` +
+        `This indicates a JWT_SECRET mismatch. Error: ${verifyError.message}`
+      );
+    }
+    
+    return token;
   }
 
   /**

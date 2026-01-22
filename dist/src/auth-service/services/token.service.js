@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var TokenService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TokenService = void 0;
 const common_1 = require("@nestjs/common");
@@ -16,21 +17,33 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = require("bcrypt");
 const uuid_1 = require("uuid");
 const prisma_service_1 = require("../repositories/prisma.service");
-let TokenService = class TokenService {
+let TokenService = TokenService_1 = class TokenService {
     constructor(jwtService, prisma, configService) {
         this.jwtService = jwtService;
         this.prisma = prisma;
         this.configService = configService;
+        this.logger = new common_1.Logger(TokenService_1.name);
         this.accessTokenExpiresIn = this.configService.get('JWT_ACCESS_TOKEN_EXPIRES_IN', 3600);
         this.refreshTokenExpiresIn = this.configService.get('JWT_REFRESH_TOKEN_EXPIRES_IN', 604800);
     }
     async generateAccessToken(payload) {
-        return this.jwtService.sign({
+        this.logger.log(`Generating access token for user: ${payload.email} (${payload.sub})`);
+        const token = this.jwtService.sign({
             ...payload,
             type: 'access',
         }, {
             expiresIn: this.accessTokenExpiresIn,
         });
+        try {
+            const decoded = this.jwtService.verify(token);
+            this.logger.debug(`Access token generated and verified successfully for ${payload.email}. ` +
+                `Token expires at: ${decoded.exp ? new Date(decoded.exp * 1000).toISOString() : 'N/A'}`);
+        }
+        catch (verifyError) {
+            this.logger.error(`CRITICAL: Generated token cannot be verified with same secret! ` +
+                `This indicates a JWT_SECRET mismatch. Error: ${verifyError.message}`);
+        }
+        return token;
     }
     async generateRefreshToken(userId, deviceInfo) {
         const tokenId = (0, uuid_1.v4)();
@@ -132,7 +145,7 @@ let TokenService = class TokenService {
     }
 };
 exports.TokenService = TokenService;
-exports.TokenService = TokenService = __decorate([
+exports.TokenService = TokenService = TokenService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [jwt_1.JwtService,
         prisma_service_1.PrismaService,

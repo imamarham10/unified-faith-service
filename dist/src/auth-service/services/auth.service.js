@@ -26,11 +26,19 @@ let AuthService = class AuthService {
         this.configService = configService;
     }
     async register(registerDto) {
-        const existingUser = await this.prisma.user.findUnique({
+        const existingUserByEmail = await this.prisma.user.findUnique({
             where: { email: registerDto.email },
         });
-        if (existingUser) {
+        if (existingUserByEmail) {
             throw new common_1.ConflictException('User with this email already exists');
+        }
+        if (registerDto.phone) {
+            const existingUserByPhone = await this.prisma.user.findFirst({
+                where: { phone: registerDto.phone },
+            });
+            if (existingUserByPhone) {
+                throw new common_1.ConflictException('User with this phone number already exists');
+            }
         }
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(registerDto.password, saltRounds);
@@ -40,7 +48,7 @@ let AuthService = class AuthService {
                 passwordHash,
                 firstName: registerDto.firstName,
                 lastName: registerDto.lastName,
-                phone: registerDto.phone || null,
+                phone: registerDto.phone,
                 isActive: true,
                 isVerified: false,
             },
@@ -115,6 +123,7 @@ let AuthService = class AuthService {
             roles: roleNames,
             permissions,
         };
+        const jwtSecret = process.env.JWT_SECRET;
         const accessToken = await this.tokenService.generateAccessToken(jwtPayload);
         const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
         return {
@@ -216,6 +225,25 @@ let AuthService = class AuthService {
         return { message: 'Logged out successfully' };
     }
     async validateJwtPayload(payload) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: {
+                id: true,
+                email: true,
+                isActive: true,
+                isVerified: true,
+                deletedAt: true,
+            },
+        });
+        if (!user) {
+            throw new common_1.UnauthorizedException('User not found');
+        }
+        if (!user.isActive) {
+            throw new common_1.UnauthorizedException('User account is inactive');
+        }
+        if (user.deletedAt) {
+            throw new common_1.UnauthorizedException('User account has been deleted');
+        }
         return payload;
     }
     async getUserPermissions(userId) {

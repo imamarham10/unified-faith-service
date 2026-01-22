@@ -35,11 +35,19 @@ exports.AuthModule = AuthModule = __decorate([
         imports: [
             config_1.ConfigModule,
             passport_1.PassportModule,
-            jwt_1.JwtModule.register({
-                secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-                signOptions: {
-                    expiresIn: '3600s',
+            jwt_1.JwtModule.registerAsync({
+                imports: [config_1.ConfigModule],
+                useFactory: async (configService) => {
+                    const jwtSecret = configService.get('JWT_SECRET') || 'your-secret-key-change-in-production';
+                    console.log('[AuthModule] JwtModule.registerAsync() - JWT_SECRET configured');
+                    return {
+                        secret: jwtSecret,
+                        signOptions: {
+                            expiresIn: '3600s',
+                        },
+                    };
                 },
+                inject: [config_1.ConfigService],
             }),
         ],
         controllers: [auth_controller_1.AuthController, roles_controller_1.RolesController, permissions_controller_1.PermissionsController],

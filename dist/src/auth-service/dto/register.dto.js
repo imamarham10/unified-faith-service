@@ -35,4 +35,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)({ message: 'Last name is required' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "lastName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)({ message: 'Phone number must be a string' }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Phone number is required' }),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "phone", void 0);
 //# sourceMappingURL=register.dto.js.map

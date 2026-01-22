@@ -6,6 +6,7 @@ export declare class TokenService {
     private jwtService;
     private prisma;
     private configService;
+    private readonly logger;
     private readonly accessTokenExpiresIn;
     private readonly refreshTokenExpiresIn;
     constructor(jwtService: JwtService, prisma: PrismaService, configService: ConfigService);

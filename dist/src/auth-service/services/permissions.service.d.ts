@@ -29,11 +29,11 @@ export declare class PermissionsService {
         id: string;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
         description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }[]>;
     getPermissionById(id: string): Promise<{
         rolePermissions: ({
@@ -42,9 +42,9 @@ export declare class PermissionsService {
                 name: string;
                 slug: string;
                 description: string | null;
+                isSystemRole: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                isSystemRole: boolean;
             };
         } & {
             id: string;
@@ -57,11 +57,11 @@ export declare class PermissionsService {
         id: string;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
         description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     createPermission(data: {
         name: string;
@@ -73,11 +73,11 @@ export declare class PermissionsService {
         id: string;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
         description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     updatePermission(id: string, data: {
         name?: string;
@@ -89,20 +89,20 @@ export declare class PermissionsService {
         id: string;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
         description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     deletePermission(id: string): Promise<{
         id: string;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
         description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
 }

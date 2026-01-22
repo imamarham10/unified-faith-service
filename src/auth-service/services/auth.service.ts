@@ -42,13 +42,24 @@ export class AuthService {
     isVerified: boolean;
     createdAt: Date;
   }> {
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
+    // Check if user with this email already exists
+    const existingUserByEmail = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
 
-    if (existingUser) {
+    if (existingUserByEmail) {
       throw new ConflictException('User with this email already exists');
+    }
+
+    // Check if user with this phone number already exists (if phone is provided)
+    if (registerDto.phone) {
+      const existingUserByPhone = await this.prisma.user.findFirst({
+        where: { phone: registerDto.phone },
+      });
+
+      if (existingUserByPhone) {
+        throw new ConflictException('User with this phone number already exists');
+      }
     }
 
     // Hash password
@@ -62,7 +73,7 @@ export class AuthService {
         passwordHash,
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
-        phone: registerDto.phone || null,
+        phone: registerDto.phone,
         isActive: true,
         isVerified: false, // Email verification can be done via OTP later
       },
@@ -175,6 +186,9 @@ export class AuthService {
       roles: roleNames,
       permissions,
     };
+
+    // Log JWT_SECRET being used for token generation
+    const jwtSecret = process.env.JWT_SECRET;
 
     const accessToken = await this.tokenService.generateAccessToken(jwtPayload);
     const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
@@ -361,8 +375,30 @@ export class AuthService {
    * Validate JWT payload (used by JWT strategy)
    */
   async validateJwtPayload(payload: JwtPayload): Promise<JwtPayload> {
-    // TODO: Validate user still exists and is active in users-service
-    // For now, just return payload
+    // Validate user exists and is active
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        isVerified: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('User account is inactive');
+    }
+
+    if (user.deletedAt) {
+      throw new UnauthorizedException('User account has been deleted');
+    }
+
     return payload;
   }
 
