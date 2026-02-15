@@ -9,8 +9,8 @@ export declare class CalendarController {
     getGregorianMonth(query: GetGregorianMonthDto): Promise<import("../services/calendar.service").CalendarMonth>;
     getHijriMonth(query: GetHijriMonthDto): Promise<import("../services/calendar.service").CalendarMonth>;
     getAllEvents(): Promise<{
-        id: string;
         name: string;
+        id: string;
         nameArabic: string | null;
         description: string | null;
         hijriMonth: number;

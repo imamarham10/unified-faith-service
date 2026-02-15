@@ -12,23 +12,23 @@ export declare class RolesService {
     getAllPermissionsByRoles(roleNames: string[]): Promise<string[]>;
     isValidRole(role: string): boolean;
     getAllRoles(): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }[]>;
     getRoleById(id: string): Promise<{
         rolePermissions: ({
             permission: {
-                id: string;
                 name: string;
-                description: string | null;
                 slug: string;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
                 resource: string;
                 action: string;
             };
@@ -40,13 +40,13 @@ export declare class RolesService {
             permissionId: string;
         })[];
     } & {
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }>;
     createRole(data: {
         name: string;
@@ -54,45 +54,45 @@ export declare class RolesService {
         description?: string;
         isSystemRole?: boolean;
     }): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }>;
     updateRole(id: string, data: {
         name?: string;
         slug?: string;
         description?: string;
     }): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }>;
     deleteRole(id: string): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }>;
     assignPermissions(roleId: string, permissionIds: string[]): Promise<{
         rolePermissions: ({
             permission: {
-                id: string;
                 name: string;
-                description: string | null;
                 slug: string;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
                 resource: string;
                 action: string;
             };
@@ -104,12 +104,12 @@ export declare class RolesService {
             permissionId: string;
         })[];
     } & {
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
-        isSystemRole: boolean;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        isSystemRole: boolean;
     }>;
 }

@@ -5,25 +5,25 @@ export declare class PermissionsController {
     private readonly permissionsService;
     constructor(permissionsService: PermissionsService);
     getAllPermissions(): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }[]>;
     getPermissionById(id: string): Promise<{
         rolePermissions: ({
             role: {
-                id: string;
                 name: string;
-                description: string | null;
                 slug: string;
-                isSystemRole: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
+                isSystemRole: boolean;
             };
         } & {
             id: string;
@@ -33,32 +33,32 @@ export declare class PermissionsController {
             permissionId: string;
         })[];
     } & {
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
     createPermission(createPermissionDto: CreatePermissionDto): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
     updatePermission(id: string, updatePermissionDto: UpdatePermissionDto): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;

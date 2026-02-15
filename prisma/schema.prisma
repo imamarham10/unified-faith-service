@@ -524,3 +524,34 @@ model QiblaCache {
   @@map("qibla_cache")
 }
 
+
+// ============================================
+// Islamic Features - Feelings / Emotions
+// ============================================
+
+model Emotion {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  slug      String          @unique
+  icon      String?         // Emoji or icon name
+  remedies  EmotionRemedy[]
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@map("emotions")
+}
+
+model EmotionRemedy {
+  id              String   @id @default(uuid())
+  arabicText      String   @map("arabic_text") @db.Text
+  transliteration String?  @db.Text
+  translation     String   @db.Text
+  source          String   // e.g., "Quran 2:153", "Sahih Bukhari 1234"
+  emotionId       String   @map("emotion_id")
+  emotion         Emotion  @relation(fields: [emotionId], references: [id])
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([emotionId])
+  @@map("emotion_remedies")
+}

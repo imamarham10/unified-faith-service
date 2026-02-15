@@ -15,6 +15,7 @@ const calendar_module_1 = require("./calendar/calendar.module");
 const duas_module_1 = require("./duas/duas.module");
 const names_module_1 = require("./names/names.module");
 const qibla_module_1 = require("./qibla/qibla.module");
+const feelings_module_1 = require("./feelings/feelings.module");
 let IslamModule = class IslamModule {
 };
 exports.IslamModule = IslamModule;
@@ -28,6 +29,7 @@ exports.IslamModule = IslamModule = __decorate([
             duas_module_1.DuasModule,
             names_module_1.NamesModule,
             qibla_module_1.QiblaModule,
+            feelings_module_1.FeelingsModule,
         ],
         exports: [
             prayers_module_1.PrayersModule,
@@ -37,6 +39,7 @@ exports.IslamModule = IslamModule = __decorate([
             duas_module_1.DuasModule,
             names_module_1.NamesModule,
             qibla_module_1.QiblaModule,
+            feelings_module_1.FeelingsModule,
         ],
     })
 ], IslamModule);

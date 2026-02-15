@@ -84,17 +84,17 @@ export declare class QuranController {
     })[]>;
     addBookmark(user: CurrentUserData, body: AddBookmarkDto): Promise<{
         id: string;
+        createdAt: Date;
         surahId: number;
         verseNumber: number;
-        createdAt: Date;
         userId: string;
         note: string | null;
     }>;
     getBookmarks(user: CurrentUserData): Promise<{
         id: string;
+        createdAt: Date;
         surahId: number;
         verseNumber: number;
-        createdAt: Date;
         userId: string;
         note: string | null;
     }[]>;

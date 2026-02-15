@@ -86,17 +86,17 @@ export declare class QuranService {
         note?: string;
     }): Promise<{
         id: string;
+        createdAt: Date;
         surahId: number;
         verseNumber: number;
-        createdAt: Date;
         userId: string;
         note: string | null;
     }>;
     getBookmarks(userId: string): Promise<{
         id: string;
+        createdAt: Date;
         surahId: number;
         verseNumber: number;
-        createdAt: Date;
         userId: string;
         note: string | null;
     }[]>;

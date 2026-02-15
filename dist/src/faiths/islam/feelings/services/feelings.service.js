@@ -9,51 +9,51 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NamesService = void 0;
+exports.FeelingsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../../../common/utils/prisma.service");
-let NamesService = class NamesService {
+let FeelingsService = class FeelingsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async getAllNames() {
-        return this.prisma.allahName.findMany({
+    async getAllEmotions() {
+        const emotions = await this.prisma.emotion.findMany({
             orderBy: {
-                id: 'asc',
+                name: 'asc',
+            },
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                icon: true,
             },
         });
+        return emotions;
     }
-    async getName(id) {
-        const name = await this.prisma.allahName.findUnique({
-            where: { id },
+    async getEmotionBySlug(slug) {
+        const emotion = await this.prisma.emotion.findUnique({
+            where: { slug },
+            include: {
+                remedies: {
+                    select: {
+                        id: true,
+                        arabicText: true,
+                        transliteration: true,
+                        translation: true,
+                        source: true,
+                    },
+                },
+            },
         });
-        if (!name) {
-            throw new Error(`Name with ID ${id} not found`);
+        if (!emotion) {
+            throw new common_1.NotFoundException(`Emotion with slug '${slug}' not found`);
         }
-        return name;
-    }
-    async addFavorite(userId, nameId) {
-        const name = await this.getName(nameId);
-        return this.prisma.userFavoriteAllahName.create({
-            data: {
-                userId,
-                nameId,
-            },
-        });
-    }
-    async getDailyName() {
-        const today = new Date();
-        const start = new Date(today.getFullYear(), 0, 0);
-        const diff = today.getTime() - start.getTime();
-        const oneDay = 1000 * 60 * 60 * 24;
-        const dayOfYear = Math.floor(diff / oneDay);
-        const id = (dayOfYear % 99) + 1;
-        return this.getName(id);
+        return emotion;
     }
 };
-exports.NamesService = NamesService;
-exports.NamesService = NamesService = __decorate([
+exports.FeelingsService = FeelingsService;
+exports.FeelingsService = FeelingsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
-], NamesService);
-//# sourceMappingURL=names.service.js.map
+], FeelingsService);
+//# sourceMappingURL=feelings.service.js.map

@@ -15,6 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NamesController = void 0;
 const common_1 = require("@nestjs/common");
 const names_service_1 = require("../services/names.service");
+const create_favorite_dto_1 = require("../dto/create-favorite.dto");
+const jwt_auth_guard_1 = require("../../../../auth-service/guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../../../auth-service/decorators/current-user.decorator");
 let NamesController = class NamesController {
     constructor(namesService) {
         this.namesService = namesService;
@@ -25,8 +28,8 @@ let NamesController = class NamesController {
     async getName(id) {
         return this.namesService.getName(parseInt(id));
     }
-    async addFavorite(favoriteDto) {
-        return this.namesService.addFavorite(favoriteDto);
+    async addFavorite(user, favoriteDto) {
+        return this.namesService.addFavorite(user.userId, favoriteDto.nameId);
     }
     async getDailyName() {
         return this.namesService.getDailyName();
@@ -48,9 +51,11 @@ __decorate([
 ], NamesController.prototype, "getName", null);
 __decorate([
     (0, common_1.Post)('favorites'),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)(common_1.ValidationPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, create_favorite_dto_1.CreateFavoriteDto]),
     __metadata("design:returntype", Promise)
 ], NamesController.prototype, "addFavorite", null);
 __decorate([

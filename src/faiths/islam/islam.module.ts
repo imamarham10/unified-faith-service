@@ -6,6 +6,7 @@ import { CalendarModule } from './calendar/calendar.module';
 import { DuasModule } from './duas/duas.module';
 import { NamesModule } from './names/names.module';
 import { QiblaModule } from './qibla/qibla.module';
+import { FeelingsModule } from './feelings/feelings.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { QiblaModule } from './qibla/qibla.module';
     DuasModule,
     NamesModule,
     QiblaModule,
+    FeelingsModule,
   ],
   exports: [
     PrayersModule,
@@ -25,6 +27,7 @@ import { QiblaModule } from './qibla/qibla.module';
     DuasModule,
     NamesModule,
     QiblaModule,
+    FeelingsModule,
   ],
 })
 export class IslamModule {}

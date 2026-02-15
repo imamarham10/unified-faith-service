@@ -32,8 +32,8 @@ export declare class CalendarService {
     getHijriMonthCalendar(year: number, month: number, timezone?: string): Promise<CalendarMonth>;
     getToday(timezone?: string): Promise<HijriDateInfo>;
     getAllEvents(): Promise<{
-        id: string;
         name: string;
+        id: string;
         nameArabic: string | null;
         description: string | null;
         hijriMonth: number;

@@ -1,5 +1,8 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ValidationPipe } from '@nestjs/common';
 import { NamesService } from '../services/names.service';
+import { CreateFavoriteDto } from '../dto/create-favorite.dto';
+import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../../auth-service/decorators/current-user.decorator';
 
 @Controller('api/v1/islam/names')
 export class NamesController {
@@ -16,8 +19,12 @@ export class NamesController {
   }
 
   @Post('favorites')
-  async addFavorite(@Body() favoriteDto: any) {
-    return this.namesService.addFavorite(favoriteDto);
+  @UseGuards(JwtAuthGuard)
+  async addFavorite(
+    @CurrentUser() user: any,
+    @Body(ValidationPipe) favoriteDto: CreateFavoriteDto,
+  ) {
+    return this.namesService.addFavorite(user.userId, favoriteDto.nameId);
   }
 
   @Get('daily')

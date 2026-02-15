@@ -3,8 +3,8 @@ export declare class DhikrService {
     private prisma;
     constructor(prisma: PrismaService);
     getCounters(userId: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -18,8 +18,8 @@ export declare class DhikrService {
         phrase: string;
         targetCount?: number;
     }): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -29,8 +29,8 @@ export declare class DhikrService {
         targetCount: number | null;
     }>;
     incrementCounter(id: string, count?: number): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -40,8 +40,8 @@ export declare class DhikrService {
         targetCount: number | null;
     }>;
     deleteCounter(id: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;

@@ -5,8 +5,8 @@ export declare class DhikrController {
     private readonly dhikrService;
     constructor(dhikrService: DhikrService);
     getCounters(user: CurrentUserData): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -16,8 +16,8 @@ export declare class DhikrController {
         targetCount: number | null;
     }[]>;
     createCounter(user: CurrentUserData, body: CreateCounterDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -27,8 +27,8 @@ export declare class DhikrController {
         targetCount: number | null;
     }>;
     incrementCounter(id: string, body: UpdateCounterDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
@@ -38,8 +38,8 @@ export declare class DhikrController {
         targetCount: number | null;
     }>;
     deleteCounter(id: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;

@@ -960,6 +960,113 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Names of Allah",
+			"item": [
+				{
+					"name": "Get All Names",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/allah",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "allah"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Name by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/allah/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "allah", "1"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Name",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/daily",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "daily"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Favorite Name",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nameId\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/favorites",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "favorites"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Feelings",
+			"item": [
+				{
+					"name": "Get All Emotions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/feelings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "feelings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Emotion Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/feelings/anxious",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "feelings", "anxious"]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"event": [

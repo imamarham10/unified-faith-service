@@ -26,25 +26,25 @@ export declare class PermissionsService {
     hasAllPermissions(userPermissions: string[], requiredPermissions: string[]): boolean;
     getAllPermissions(): string[];
     getAllPermissionsFromDb(): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }[]>;
     getPermissionById(id: string): Promise<{
         rolePermissions: ({
             role: {
-                id: string;
                 name: string;
-                description: string | null;
                 slug: string;
-                isSystemRole: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
+                isSystemRole: boolean;
             };
         } & {
             id: string;
@@ -54,12 +54,12 @@ export declare class PermissionsService {
             permissionId: string;
         })[];
     } & {
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
@@ -70,12 +70,12 @@ export declare class PermissionsService {
         action: string;
         description?: string;
     }): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
@@ -86,22 +86,22 @@ export declare class PermissionsService {
         action?: string;
         description?: string;
     }): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
     deletePermission(id: string): Promise<{
-        id: string;
         name: string;
-        description: string | null;
         slug: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         resource: string;
         action: string;
     }>;
