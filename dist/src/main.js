@@ -17,6 +17,7 @@ async function bootstrap() {
         },
     }));
     app.enableShutdownHooks();
+    app.enableCors({ origin: '*' });
     const port = process.env.PORT || 3000;
     await app.listen(port);
     console.log(`Application is running on: ${port}`);
