@@ -15,53 +15,111 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CalendarController = void 0;
 const common_1 = require("@nestjs/common");
 const calendar_service_1 = require("../services/calendar.service");
+const calendar_dto_1 = require("../dto/calendar.dto");
+const jwt_auth_guard_1 = require("../../../../auth-service/guards/jwt-auth.guard");
+const public_decorator_1 = require("../../../../auth-service/decorators/public.decorator");
 let CalendarController = class CalendarController {
     constructor(calendarService) {
         this.calendarService = calendarService;
     }
-    async getHijriDate(date) {
-        return this.calendarService.getHijriDate(date);
+    async getToday(query) {
+        return this.calendarService.getToday(query.timezone);
     }
-    async convertDate(date, to) {
-        return this.calendarService.convertDate(date, to);
+    async convertToHijri(query) {
+        const date = query.date ? new Date(query.date) : new Date();
+        return this.calendarService.gregorianToHijri(date, query.timezone);
     }
-    async getEvents() {
-        return this.calendarService.getEvents();
+    async convertToGregorian(query) {
+        return this.calendarService.hijriToGregorian(query.year, query.month, query.day, query.timezone);
     }
-    async getUpcomingEvents() {
-        return this.calendarService.getUpcomingEvents();
+    async getGregorianMonth(query) {
+        return this.calendarService.getGregorianMonthCalendar(query.year, query.month, query.timezone);
+    }
+    async getHijriMonth(query) {
+        return this.calendarService.getHijriMonthCalendar(query.year, query.month, query.timezone);
+    }
+    async getAllEvents() {
+        return this.calendarService.getAllEvents();
+    }
+    async getUpcomingEvents(query) {
+        return this.calendarService.getUpcomingEvents(query.days, query.timezone);
+    }
+    async getHijriMonths() {
+        return this.calendarService.getHijriMonthNames();
     }
 };
 exports.CalendarController = CalendarController;
 __decorate([
-    (0, common_1.Get)('hijri'),
-    __param(0, (0, common_1.Query)('date')),
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('today'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [calendar_dto_1.GetTodayDto]),
     __metadata("design:returntype", Promise)
-], CalendarController.prototype, "getHijriDate", null);
+], CalendarController.prototype, "getToday", null);
 __decorate([
-    (0, common_1.Get)('convert'),
-    __param(0, (0, common_1.Query)('date')),
-    __param(1, (0, common_1.Query)('to')),
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('convert/to-hijri'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [calendar_dto_1.ConvertToHijriDto]),
     __metadata("design:returntype", Promise)
-], CalendarController.prototype, "convertDate", null);
+], CalendarController.prototype, "convertToHijri", null);
 __decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('convert/to-gregorian'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [calendar_dto_1.ConvertToGregorianDto]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "convertToGregorian", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('gregorian-month'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [calendar_dto_1.GetGregorianMonthDto]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "getGregorianMonth", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('hijri-month'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [calendar_dto_1.GetHijriMonthDto]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "getHijriMonth", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Get)('events'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], CalendarController.prototype, "getEvents", null);
+], CalendarController.prototype, "getAllEvents", null);
 __decorate([
-    (0, common_1.Get)('upcoming'),
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('events/upcoming'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [calendar_dto_1.GetUpcomingEventsDto]),
+    __metadata("design:returntype", Promise)
+], CalendarController.prototype, "getUpcomingEvents", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('months'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], CalendarController.prototype, "getUpcomingEvents", null);
+], CalendarController.prototype, "getHijriMonths", null);
 exports.CalendarController = CalendarController = __decorate([
     (0, common_1.Controller)('api/v1/islam/calendar'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [calendar_service_1.CalendarService])
 ], CalendarController);
 //# sourceMappingURL=calendar.controller.js.map

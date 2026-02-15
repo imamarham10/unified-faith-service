@@ -27,8 +27,8 @@ export declare class PermissionsService {
     getAllPermissions(): string[];
     getAllPermissionsFromDb(): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         createdAt: Date;
         updatedAt: Date;
@@ -39,8 +39,8 @@ export declare class PermissionsService {
         rolePermissions: ({
             role: {
                 id: string;
-                description: string | null;
                 name: string;
+                description: string | null;
                 slug: string;
                 isSystemRole: boolean;
                 createdAt: Date;
@@ -55,8 +55,8 @@ export declare class PermissionsService {
         })[];
     } & {
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         createdAt: Date;
         updatedAt: Date;
@@ -71,8 +71,8 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         createdAt: Date;
         updatedAt: Date;
@@ -87,8 +87,8 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         createdAt: Date;
         updatedAt: Date;
@@ -97,8 +97,8 @@ export declare class PermissionsService {
     }>;
     deletePermission(id: string): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         createdAt: Date;
         updatedAt: Date;

@@ -6,6 +6,6 @@ import { PrismaService } from '../../../common/utils/prisma.service';
 @Module({
   controllers: [CalendarController],
   providers: [CalendarService, PrismaService],
-  exports: [CalendarService],
+  exports: [CalendarService]
 })
 export class CalendarModule {}

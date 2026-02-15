@@ -2,10 +2,28 @@
 	"info": {
 		"_postman_id": "unified-faith-service-islamic-api",
 		"name": "Unified Faith Service - Islamic API",
-		"description": "API collection for Unified Faith Service Islamic features including Prayer Times, Quran, Dhikr, and Qibla.",
+		"description": "API collection for Unified Faith Service Islamic features including Prayer Times, Quran, Dhikr, Qibla, and Calendar.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
+		{
+			"name": "Metadata",
+			"item": [
+				{
+					"name": "Get Supported Faiths",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/faiths",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "faiths"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
 		{
 			"name": "Auth",
 			"item": [
@@ -21,7 +39,7 @@
 									"    pm.environment.set(\"token\", jsonData.accessToken);",
 									"    console.log(\"Token updated\");",
 									"}",
-                                    "if (jsonData.access_token) {",
+									"if (jsonData.access_token) {",
 									"    pm.environment.set(\"token\", jsonData.access_token);",
 									"    console.log(\"Token updated (access_token format)\");",
 									"}"
@@ -44,13 +62,221 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/login",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"auth",
-								"login"
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Calendar",
+			"item": [
+				{
+					"name": "Get Today's Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/today",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "today"],
+							"query": [
+								{
+									"key": "timezone",
+									"value": "Asia/Kolkata",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
 							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's Date (New York)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/today?timezone=America/New_York",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "today"],
+							"query": [
+								{
+									"key": "timezone",
+									"value": "America/New_York"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Convert Gregorian to Hijri",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/convert/to-hijri?date=2026-02-15",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "convert", "to-hijri"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2026-02-15"
+								},
+								{
+									"key": "timezone",
+									"value": "Asia/Kolkata",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Convert Hijri to Gregorian",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/convert/to-gregorian?year=1447&month=8&day=27",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "convert", "to-gregorian"],
+							"query": [
+								{
+									"key": "year",
+									"value": "1447"
+								},
+								{
+									"key": "month",
+									"value": "8"
+								},
+								{
+									"key": "day",
+									"value": "27"
+								},
+								{
+									"key": "timezone",
+									"value": "Asia/Dubai",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Gregorian Month Calendar",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/gregorian-month?year=2026&month=2",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "gregorian-month"],
+							"query": [
+								{
+									"key": "year",
+									"value": "2026"
+								},
+								{
+									"key": "month",
+									"value": "2"
+								},
+								{
+									"key": "timezone",
+									"value": "Asia/Riyadh",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Hijri Month Calendar (Ramadan 1447)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/hijri-month?year=1447&month=9",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "hijri-month"],
+							"query": [
+								{
+									"key": "year",
+									"value": "1447"
+								},
+								{
+									"key": "month",
+									"value": "9",
+									"description": "Ramadan"
+								},
+								{
+									"key": "timezone",
+									"value": "Asia/Jakarta",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Islamic Events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "events"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Upcoming Events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/events/upcoming?days=90",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "events", "upcoming"],
+							"query": [
+								{
+									"key": "days",
+									"value": "90"
+								},
+								{
+									"key": "timezone",
+									"value": "Europe/London",
+									"description": "IANA timezone (optional)",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Hijri Month Names",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/calendar/months",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "calendar", "months"]
 						}
 					},
 					"response": []
@@ -67,16 +293,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/prayers/times?lat=12.9716&lng=77.5946&date=2026-02-15",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"prayers",
-								"times"
-							],
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "prayers", "times"],
 							"query": [
 								{
 									"key": "lat",
@@ -90,11 +308,11 @@
 									"key": "date",
 									"value": "2026-02-15"
 								},
-                                {
-                                    "key": "method",
-                                    "value": "mwl",
-                                    "disabled": true
-                                }
+								{
+									"key": "method",
+									"value": "mwl",
+									"disabled": true
+								}
 							]
 						}
 					},
@@ -107,16 +325,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/prayers/current?lat=12.9716&lng=77.5946",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"prayers",
-								"current"
-							],
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "prayers", "current"],
 							"query": [
 								{
 									"key": "lat",
@@ -157,16 +367,8 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/prayers/log",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"prayers",
-								"log"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "prayers", "log"]
 						}
 					},
 					"response": []
@@ -188,16 +390,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/prayers/logs",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"prayers",
-								"logs"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "prayers", "logs"]
 						}
 					},
 					"response": []
@@ -219,16 +413,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/prayers/stats",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"prayers",
-								"stats"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "prayers", "stats"]
 						}
 					},
 					"response": []
@@ -245,16 +431,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/quran/surahs",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"quran",
-								"surahs"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "quran", "surahs"]
 						}
 					},
 					"response": []
@@ -266,17 +444,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/quran/surah/1",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"quran",
-								"surah",
-								"1"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "quran", "surah", "1"]
 						}
 					},
 					"response": []
@@ -288,16 +457,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/quran/search?q=mercy",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"quran",
-								"search"
-							],
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "quran", "search"],
 							"query": [
 								{
 									"key": "q",
@@ -334,16 +495,8 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/quran/bookmarks",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"quran",
-								"bookmarks"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "quran", "bookmarks"]
 						}
 					},
 					"response": []
@@ -365,16 +518,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/quran/bookmarks",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"quran",
-								"bookmarks"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "quran", "bookmarks"]
 						}
 					},
 					"response": []
@@ -401,16 +546,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"counters"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "counters"]
 						}
 					},
 					"response": []
@@ -455,16 +592,8 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"counters"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "counters"]
 						}
 					},
 					"response": []
@@ -495,17 +624,8 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters/{{counterId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"counters",
-								"{{counterId}}"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "counters", "{{counterId}}"]
 						}
 					},
 					"response": []
@@ -536,16 +656,8 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/goals",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"goals"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "goals"]
 						}
 					},
 					"response": []
@@ -567,16 +679,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/goals",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"goals"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "goals"]
 						}
 					},
 					"response": []
@@ -598,16 +702,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/dhikr/stats",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"dhikr",
-								"stats"
-							]
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "dhikr", "stats"]
 						}
 					},
 					"response": []
@@ -624,15 +720,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/api/v1/islam/qibla?lat=12.9716&lng=77.5946",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"islam",
-								"qibla"
-							],
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "qibla"],
 							"query": [
 								{
 									"key": "lat",
@@ -655,18 +744,14 @@
 			"listen": "prerequest",
 			"script": {
 				"type": "text/javascript",
-				"exec": [
-					""
-				]
+				"exec": [""]
 			}
 		},
 		{
 			"listen": "test",
 			"script": {
 				"type": "text/javascript",
-				"exec": [
-					""
-				]
+				"exec": [""]
 			}
 		}
 	],

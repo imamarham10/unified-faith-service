@@ -7,8 +7,8 @@ export declare class RolesController {
     constructor(rolesService: RolesService);
     getAllRoles(): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -18,8 +18,8 @@ export declare class RolesController {
         rolePermissions: ({
             permission: {
                 id: string;
-                description: string | null;
                 name: string;
+                description: string | null;
                 slug: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -35,8 +35,8 @@ export declare class RolesController {
         })[];
     } & {
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -44,8 +44,8 @@ export declare class RolesController {
     }>;
     createRole(createRoleDto: CreateRoleDto): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -53,8 +53,8 @@ export declare class RolesController {
     }>;
     updateRole(id: string, updateRoleDto: UpdateRoleDto): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -67,8 +67,8 @@ export declare class RolesController {
         rolePermissions: ({
             permission: {
                 id: string;
-                description: string | null;
                 name: string;
+                description: string | null;
                 slug: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -84,8 +84,8 @@ export declare class RolesController {
         })[];
     } & {
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;

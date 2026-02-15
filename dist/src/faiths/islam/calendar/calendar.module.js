@@ -18,7 +18,7 @@ exports.CalendarModule = CalendarModule = __decorate([
     (0, common_1.Module)({
         controllers: [calendar_controller_1.CalendarController],
         providers: [calendar_service_1.CalendarService, prisma_service_1.PrismaService],
-        exports: [calendar_service_1.CalendarService],
+        exports: [calendar_service_1.CalendarService]
     })
 ], CalendarModule);
 //# sourceMappingURL=calendar.module.js.map

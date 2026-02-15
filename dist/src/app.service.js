@@ -8,9 +8,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppService = void 0;
 const common_1 = require("@nestjs/common");
+const faiths_constant_1 = require("./common/constants/faiths.constant");
 let AppService = class AppService {
     getHello() {
-        return 'Hello World!';
+        return 'Unified Faith Service API is running!';
+    }
+    getSupportedFaiths() {
+        return faiths_constant_1.SUPPORTED_FAITHS;
     }
 };
 exports.AppService = AppService;

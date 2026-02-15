@@ -422,6 +422,7 @@ model IslamicEvent {
   hijriDay    Int     @map("hijri_day")
   importance  String // major, moderate, minor
 
+  @@unique([hijriMonth, hijriDay, name], name: "hijriMonth_hijriDay_name")
   @@index([hijriMonth, hijriDay])
   @@map("islamic_events")
 }

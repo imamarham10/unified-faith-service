@@ -13,8 +13,8 @@ export declare class RolesService {
     isValidRole(role: string): boolean;
     getAllRoles(): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -24,8 +24,8 @@ export declare class RolesService {
         rolePermissions: ({
             permission: {
                 id: string;
-                description: string | null;
                 name: string;
+                description: string | null;
                 slug: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -41,8 +41,8 @@ export declare class RolesService {
         })[];
     } & {
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -55,8 +55,8 @@ export declare class RolesService {
         isSystemRole?: boolean;
     }): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -68,8 +68,8 @@ export declare class RolesService {
         description?: string;
     }): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -77,8 +77,8 @@ export declare class RolesService {
     }>;
     deleteRole(id: string): Promise<{
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
@@ -88,8 +88,8 @@ export declare class RolesService {
         rolePermissions: ({
             permission: {
                 id: string;
-                description: string | null;
                 name: string;
+                description: string | null;
                 slug: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -105,8 +105,8 @@ export declare class RolesService {
         })[];
     } & {
         id: string;
-        description: string | null;
         name: string;
+        description: string | null;
         slug: string;
         isSystemRole: boolean;
         createdAt: Date;
