@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth-service/modules/auth.module';
 import { UsersModule } from './users-service/modules/users.module';
+import { FaithModule } from './faiths/faith.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { UsersModule } from './users-service/modules/users.module';
     }),
     AuthModule,
     UsersModule,
+    FaithModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -13,6 +13,7 @@ const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth-service/modules/auth.module");
 const users_module_1 = require("./users-service/modules/users.module");
+const faith_module_1 = require("./faiths/faith.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,6 +26,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
+            faith_module_1.FaithModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

@@ -220,3 +220,306 @@ model DeviceToken {
   @@index([token])
   @@map("device_tokens")
 }
+
+// ============================================
+// Islamic Features - Prayer Times
+// ============================================
+
+model PrayerTime {
+  id        String   @id @default(uuid())
+  latitude  Float
+  longitude Float
+  date      DateTime @db.Date
+  methodId  String   @map("method_id")
+  fajr      DateTime
+  sunrise   DateTime
+  dhuhr     DateTime
+  asr       DateTime
+  maghrib   DateTime
+  isha      DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([latitude, longitude, date, methodId])
+  @@index([latitude, longitude, date])
+  @@map("prayer_times")
+}
+
+model PrayerLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  prayerName String   @map("prayer_name") // fajr, dhuhr, asr, maghrib, isha
+  date       DateTime @db.Date
+  loggedAt   DateTime @map("logged_at")
+  status     String // on_time, late, qada
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, prayerName, date])
+  @@index([userId, date])
+  @@map("prayer_logs")
+}
+
+model CalculationMethod {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  fajrAngle   Float   @map("fajr_angle")
+  ishaAngle   Float   @map("isha_angle")
+  description String?
+
+  @@map("calculation_methods")
+}
+
+model UserLocation {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  locationName        String   @map("location_name")
+  latitude            Float
+  longitude           Float
+  timezone            String
+  calculationMethodId String?  @map("calculation_method_id")
+  isDefault           Boolean  @default(false) @map("is_default")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("user_locations")
+}
+
+// ============================================
+// Islamic Features - Quran
+// ============================================
+
+model QuranSurah {
+  id                  Int    @id
+  nameArabic          String @map("name_arabic")
+  nameEnglish         String @map("name_english")
+  nameTransliteration String @map("name_transliteration")
+  revelationPlace     String @map("revelation_place") // Meccan or Medinan
+  verseCount          Int    @map("verse_count")
+
+  verses QuranVerse[]
+
+  @@map("quran_surahs")
+}
+
+model QuranVerse {
+  id          String @id @default(uuid())
+  surahId     Int    @map("surah_id")
+  verseNumber Int    @map("verse_number")
+  textArabic  String @map("text_arabic") @db.Text
+  textSimple  String @map("text_simple") @db.Text
+
+  surah        QuranSurah          @relation(fields: [surahId], references: [id])
+  translations QuranTranslation[]
+
+  @@unique([surahId, verseNumber])
+  @@index([surahId])
+  @@map("quran_verses")
+}
+
+model QuranTranslation {
+  id         String @id @default(uuid())
+  verseId    String @map("verse_id")
+  language   String
+  authorName String @map("author_name")
+  text       String @db.Text
+
+  verse QuranVerse @relation(fields: [verseId], references: [id])
+
+  @@index([verseId, language])
+  @@map("quran_translations")
+}
+
+model UserQuranBookmark {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  surahId     Int      @map("surah_id")
+  verseNumber Int      @map("verse_number")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_quran_bookmarks")
+}
+
+model UserQuranProgress {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  lastSurahId     Int?     @map("last_surah_id")
+  lastVerseNumber Int?     @map("last_verse_number")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("user_quran_progress")
+}
+
+// ============================================
+// Islamic Features - Dhikr
+// ============================================
+
+model DhikrCounter {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  phrase      String
+  count       Int      @default(0)
+  targetCount Int?     @map("target_count")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("dhikr_counters")
+}
+
+model DhikrGoal {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  phrase      String
+  targetCount Int      @map("target_count")
+  period      String // daily, weekly, monthly
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("dhikr_goals")
+}
+
+model DhikrHistory {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  phrase    String
+  count     Int
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, phrase, date])
+  @@index([userId, date])
+  @@map("dhikr_history")
+}
+
+// ============================================
+// Islamic Features - Calendar
+// ============================================
+
+model HijriDate {
+  id            String   @id @default(uuid())
+  gregorianDate DateTime @unique @db.Date
+  hijriDay      Int      @map("hijri_day")
+  hijriMonth    Int      @map("hijri_month")
+  hijriYear     Int      @map("hijri_year")
+
+  @@index([hijriYear, hijriMonth, hijriDay])
+  @@map("hijri_dates")
+}
+
+model IslamicEvent {
+  id          String  @id @default(uuid())
+  name        String
+  nameArabic  String? @map("name_arabic")
+  description String?
+  hijriMonth  Int     @map("hijri_month")
+  hijriDay    Int     @map("hijri_day")
+  importance  String // major, moderate, minor
+
+  @@index([hijriMonth, hijriDay])
+  @@map("islamic_events")
+}
+
+// ============================================
+// Islamic Features - Duas
+// ============================================
+
+model Dua {
+  id            String @id @default(uuid())
+  categoryId    String @map("category_id")
+  titleArabic   String @map("title_arabic")
+  titleEnglish  String @map("title_english")
+  textArabic    String @map("text_arabic") @db.Text
+  textTranslit  String? @map("text_transliteration") @db.Text
+  textEnglish   String @map("text_english") @db.Text
+  reference     String?
+  audioUrl      String? @map("audio_url")
+
+  category DuaCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@map("duas")
+}
+
+model DuaCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  nameArabic  String? @map("name_arabic")
+  description String?
+
+  duas Dua[]
+
+  @@map("dua_categories")
+}
+
+model UserCustomDua {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  text      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("user_custom_duas")
+}
+
+model UserFavoriteDua {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  duaId     String   @map("dua_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, duaId])
+  @@index([userId])
+  @@map("user_favorite_duas")
+}
+
+// ============================================
+// Islamic Features - Names of Allah
+// ============================================
+
+model AllahName {
+  id           Int     @id
+  nameArabic   String  @map("name_arabic")
+  nameTranslit String  @map("name_transliteration")
+  nameEnglish  String  @map("name_english")
+  meaning      String
+  description  String? @db.Text
+  audioUrl     String? @map("audio_url")
+
+  @@map("allah_names")
+}
+
+model UserFavoriteAllahName {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  nameId    Int      @map("name_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, nameId])
+  @@index([userId])
+  @@map("user_favorite_allah_names")
+}
+
+// ============================================
+// Islamic Features - Qibla
+// ============================================
+
+model QiblaCache {
+  id        String   @id @default(uuid())
+  latitude  Float
+  longitude Float
+  direction Float // Degrees from north
+  distance  Float // Distance to Kaaba in km
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([latitude, longitude])
+  @@map("qibla_cache")
+}
+

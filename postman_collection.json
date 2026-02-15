@@ -1,0 +1,680 @@
+{
+	"info": {
+		"_postman_id": "unified-faith-service-islamic-api",
+		"name": "Unified Faith Service - Islamic API",
+		"description": "API collection for Unified Faith Service Islamic features including Prayer Times, Quran, Dhikr, and Qibla.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.accessToken) {",
+									"    pm.environment.set(\"token\", jsonData.accessToken);",
+									"    console.log(\"Token updated\");",
+									"}",
+                                    "if (jsonData.access_token) {",
+									"    pm.environment.set(\"token\", jsonData.access_token);",
+									"    console.log(\"Token updated (access_token format)\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"arhamimam2000@gmail.com\",\n    \"password\": \"Admin@1099\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Prayers",
+			"item": [
+				{
+					"name": "Get Prayer Times",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/prayers/times?lat=12.9716&lng=77.5946&date=2026-02-15",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"prayers",
+								"times"
+							],
+							"query": [
+								{
+									"key": "lat",
+									"value": "12.9716"
+								},
+								{
+									"key": "lng",
+									"value": "77.5946"
+								},
+								{
+									"key": "date",
+									"value": "2026-02-15"
+								},
+                                {
+                                    "key": "method",
+                                    "value": "mwl",
+                                    "disabled": true
+                                }
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Prayer",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/prayers/current?lat=12.9716&lng=77.5946",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"prayers",
+								"current"
+							],
+							"query": [
+								{
+									"key": "lat",
+									"value": "12.9716"
+								},
+								{
+									"key": "lng",
+									"value": "77.5946"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Log Prayer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"prayerName\": \"fajr\",\n    \"date\": \"2026-02-15\",\n    \"status\": \"on_time\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/prayers/log",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"prayers",
+								"log"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Prayer Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/prayers/logs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"prayers",
+								"logs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Prayer Stats",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/prayers/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"prayers",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Quran",
+			"item": [
+				{
+					"name": "Get All Surahs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/quran/surahs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"quran",
+								"surahs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Surah (Al-Fatihah)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/quran/surah/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"quran",
+								"surah",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Verses (Mercy)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/quran/search?q=mercy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"quran",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "mercy"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Bookmark",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"surahId\": 1,\n    \"verseNumber\": 1,\n    \"note\": \"First verse\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/quran/bookmarks",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"quran",
+								"bookmarks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bookmarks",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/quran/bookmarks",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"quran",
+								"bookmarks"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dhikr",
+			"item": [
+				{
+					"name": "Get Counters",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"counters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Counter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.id) {",
+									"    pm.environment.set(\"counterId\", jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Morning Dhikr\",\n    \"phrase\": \"Subhanallah\",\n    \"targetCount\": 100\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"counters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Increment Counter",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"count\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/counters/{{counterId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"counters",
+								"{{counterId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Goal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phrase\": \"Alhamdulillah\",\n    \"targetCount\": 1000,\n    \"period\": \"weekly\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/goals",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"goals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Goals",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/goals",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"goals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stats",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/dhikr/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"dhikr",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Qibla",
+			"item": [
+				{
+					"name": "Get Qibla Direction",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/qibla?lat=12.9716&lng=77.5946",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"islam",
+								"qibla"
+							],
+							"query": [
+								{
+									"key": "lat",
+									"value": "12.9716"
+								},
+								{
+									"key": "lng",
+									"value": "77.5946"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

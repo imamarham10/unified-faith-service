@@ -6,24 +6,24 @@ export declare class PermissionsController {
     constructor(permissionsService: PermissionsService);
     getAllPermissions(): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }[]>;
     getPermissionById(id: string): Promise<{
         rolePermissions: ({
             role: {
                 id: string;
+                description: string | null;
                 name: string;
                 slug: string;
-                description: string | null;
+                isSystemRole: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                isSystemRole: boolean;
             };
         } & {
             id: string;
@@ -34,33 +34,33 @@ export declare class PermissionsController {
         })[];
     } & {
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     createPermission(createPermissionDto: CreatePermissionDto): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     updatePermission(id: string, updatePermissionDto: UpdatePermissionDto): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        resource: string;
-        action: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        resource: string;
+        action: string;
     }>;
     deletePermission(id: string): Promise<{
         message: string;

@@ -10,7 +10,10 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const pool = new Pool({ connectionString: databaseUrl });
+const pool = new Pool({ 
+  connectionString: databaseUrl?.replace('sslmode=require', ''),
+  ssl: { rejectUnauthorized: false } 
+});
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 

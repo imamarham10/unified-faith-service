@@ -27,9 +27,9 @@ export declare class PermissionsService {
     getAllPermissions(): string[];
     getAllPermissionsFromDb(): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
         resource: string;
@@ -39,9 +39,9 @@ export declare class PermissionsService {
         rolePermissions: ({
             role: {
                 id: string;
+                description: string | null;
                 name: string;
                 slug: string;
-                description: string | null;
                 isSystemRole: boolean;
                 createdAt: Date;
                 updatedAt: Date;
@@ -55,9 +55,9 @@ export declare class PermissionsService {
         })[];
     } & {
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
         resource: string;
@@ -71,9 +71,9 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
         resource: string;
@@ -87,9 +87,9 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
         resource: string;
@@ -97,9 +97,9 @@ export declare class PermissionsService {
     }>;
     deletePermission(id: string): Promise<{
         id: string;
+        description: string | null;
         name: string;
         slug: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
         resource: string;

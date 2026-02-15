@@ -9,7 +9,10 @@ if (!databaseUrl) {
     console.error('❌ DATABASE_URL not set');
     process.exit(1);
 }
-const pool = new pg_1.Pool({ connectionString: databaseUrl });
+const pool = new pg_1.Pool({
+    connectionString: databaseUrl?.replace('sslmode=require', ''),
+    ssl: { rejectUnauthorized: false }
+});
 const adapter = new adapter_pg_1.PrismaPg(pool);
 const prisma = new client_1.PrismaClient({ adapter });
 async function main() {
