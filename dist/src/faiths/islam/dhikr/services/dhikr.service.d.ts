@@ -1,7 +1,9 @@
 import { PrismaService } from '../../../../common/utils/prisma.service';
+import { DhikrDictionaryService } from './dhikr-dictionary.service';
 export declare class DhikrService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private dictionaryService;
+    constructor(prisma: PrismaService, dictionaryService: DhikrDictionaryService);
     getCounters(userId: string): Promise<{
         name: string;
         id: string;
@@ -9,7 +11,9 @@ export declare class DhikrService {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }[]>;
@@ -24,7 +28,9 @@ export declare class DhikrService {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -35,7 +41,9 @@ export declare class DhikrService {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -46,7 +54,9 @@ export declare class DhikrService {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -59,7 +69,9 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         userId: string;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         targetCount: number;
         period: string;
         startDate: Date;
@@ -69,7 +81,9 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         userId: string;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         targetCount: number;
         period: string;
         startDate: Date;
@@ -78,7 +92,8 @@ export declare class DhikrService {
     getStats(userId: string): Promise<{
         totalDhikr: number;
         byPhrase: {
-            phrase: string;
+            phraseArabic: string;
+            phraseEnglish: string;
             count: number;
         }[];
         recentActivity: {
@@ -86,7 +101,9 @@ export declare class DhikrService {
             createdAt: Date;
             userId: string;
             date: Date;
-            phrase: string;
+            phraseArabic: string;
+            phraseTranslit: string | null;
+            phraseEnglish: string;
             count: number;
         }[];
     }>;

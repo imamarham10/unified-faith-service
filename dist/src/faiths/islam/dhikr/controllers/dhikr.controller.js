@@ -15,12 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DhikrController = void 0;
 const common_1 = require("@nestjs/common");
 const dhikr_service_1 = require("../services/dhikr.service");
+const dhikr_dictionary_service_1 = require("../services/dhikr-dictionary.service");
 const dhikr_dto_1 = require("../dto/dhikr.dto");
 const jwt_auth_guard_1 = require("../../../../auth-service/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../../../../auth-service/decorators/current-user.decorator");
 let DhikrController = class DhikrController {
-    constructor(dhikrService) {
+    constructor(dhikrService, dictionaryService) {
         this.dhikrService = dhikrService;
+        this.dictionaryService = dictionaryService;
     }
     async getCounters(user) {
         return this.dhikrService.getCounters(user.userId);
@@ -42,6 +44,9 @@ let DhikrController = class DhikrController {
     }
     async getStats(user) {
         return this.dhikrService.getStats(user.userId);
+    }
+    async getAvailablePhrases() {
+        return this.dictionaryService.getAllPhrases();
     }
 };
 exports.DhikrController = DhikrController;
@@ -100,9 +105,16 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], DhikrController.prototype, "getStats", null);
+__decorate([
+    (0, common_1.Get)('phrases'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DhikrController.prototype, "getAvailablePhrases", null);
 exports.DhikrController = DhikrController = __decorate([
     (0, common_1.Controller)('api/v1/islam/dhikr'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [dhikr_service_1.DhikrService])
+    __metadata("design:paramtypes", [dhikr_service_1.DhikrService,
+        dhikr_dictionary_service_1.DhikrDictionaryService])
 ], DhikrController);
 //# sourceMappingURL=dhikr.controller.js.map

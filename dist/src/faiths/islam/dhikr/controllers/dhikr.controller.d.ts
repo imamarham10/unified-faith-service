@@ -1,9 +1,11 @@
 import { DhikrService } from '../services/dhikr.service';
+import { DhikrDictionaryService } from '../services/dhikr-dictionary.service';
 import { CreateCounterDto, CreateGoalDto, UpdateCounterDto } from '../dto/dhikr.dto';
 import { CurrentUserData } from '../../../../auth-service/decorators/current-user.decorator';
 export declare class DhikrController {
     private readonly dhikrService;
-    constructor(dhikrService: DhikrService);
+    private readonly dictionaryService;
+    constructor(dhikrService: DhikrService, dictionaryService: DhikrDictionaryService);
     getCounters(user: CurrentUserData): Promise<{
         name: string;
         id: string;
@@ -11,7 +13,9 @@ export declare class DhikrController {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }[]>;
@@ -22,7 +26,9 @@ export declare class DhikrController {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -33,7 +39,9 @@ export declare class DhikrController {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -44,7 +52,9 @@ export declare class DhikrController {
         updatedAt: Date;
         userId: string;
         isActive: boolean;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         count: number;
         targetCount: number | null;
     }>;
@@ -52,7 +62,9 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         userId: string;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         targetCount: number;
         period: string;
         startDate: Date;
@@ -62,7 +74,9 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         userId: string;
-        phrase: string;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
         targetCount: number;
         period: string;
         startDate: Date;
@@ -71,7 +85,8 @@ export declare class DhikrController {
     getStats(user: CurrentUserData): Promise<{
         totalDhikr: number;
         byPhrase: {
-            phrase: string;
+            phraseArabic: string;
+            phraseEnglish: string;
             count: number;
         }[];
         recentActivity: {
@@ -79,8 +94,11 @@ export declare class DhikrController {
             createdAt: Date;
             userId: string;
             date: Date;
-            phrase: string;
+            phraseArabic: string;
+            phraseTranslit: string | null;
+            phraseEnglish: string;
             count: number;
         }[];
     }>;
+    getAvailablePhrases(): Promise<import("../constants/dhikr-phrases.constant").DhikrPhrase[]>;
 }

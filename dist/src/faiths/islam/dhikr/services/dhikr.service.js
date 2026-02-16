@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DhikrService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../../../common/utils/prisma.service");
+const dhikr_dictionary_service_1 = require("./dhikr-dictionary.service");
 let DhikrService = class DhikrService {
-    constructor(prisma) {
+    constructor(prisma, dictionaryService) {
         this.prisma = prisma;
+        this.dictionaryService = dictionaryService;
     }
     async getCounters(userId) {
         return this.prisma.dhikrCounter.findMany({
@@ -23,11 +25,14 @@ let DhikrService = class DhikrService {
         });
     }
     async createCounter(userId, data) {
+        const resolvedPhrase = this.dictionaryService.resolvePhrase(data.phrase);
         return this.prisma.dhikrCounter.create({
             data: {
                 userId,
                 name: data.name,
-                phrase: data.phrase,
+                phraseArabic: resolvedPhrase.arabic,
+                phraseTranslit: resolvedPhrase.transliteration,
+                phraseEnglish: resolvedPhrase.english,
                 targetCount: data.targetCount,
             },
         });
@@ -48,9 +53,9 @@ let DhikrService = class DhikrService {
             });
             await tx.dhikrHistory.upsert({
                 where: {
-                    userId_phrase_date: {
+                    userId_phraseArabic_date: {
                         userId: counter.userId,
-                        phrase: counter.phrase,
+                        phraseArabic: counter.phraseArabic,
                         date: today,
                     }
                 },
@@ -59,7 +64,9 @@ let DhikrService = class DhikrService {
                 },
                 create: {
                     userId: counter.userId,
-                    phrase: counter.phrase,
+                    phraseArabic: counter.phraseArabic,
+                    phraseTranslit: counter.phraseTranslit,
+                    phraseEnglish: counter.phraseEnglish,
                     date: today,
                     count: count
                 }
@@ -73,6 +80,7 @@ let DhikrService = class DhikrService {
         });
     }
     async createGoal(userId, data) {
+        const resolvedPhrase = this.dictionaryService.resolvePhrase(data.phrase);
         const today = new Date();
         const start = new Date(today);
         let end = data.endDate ? new Date(data.endDate) : new Date(today);
@@ -87,7 +95,9 @@ let DhikrService = class DhikrService {
         return this.prisma.dhikrGoal.create({
             data: {
                 userId,
-                phrase: data.phrase,
+                phraseArabic: resolvedPhrase.arabic,
+                phraseTranslit: resolvedPhrase.transliteration,
+                phraseEnglish: resolvedPhrase.english,
                 targetCount: data.targetCount,
                 period: data.period,
                 startDate: start,
@@ -110,7 +120,7 @@ let DhikrService = class DhikrService {
             _sum: { count: true }
         });
         const byPhrase = await this.prisma.dhikrHistory.groupBy({
-            by: ['phrase'],
+            by: ['phraseArabic', 'phraseEnglish'],
             where: { userId },
             _sum: { count: true }
         });
@@ -125,7 +135,11 @@ let DhikrService = class DhikrService {
         });
         return {
             totalDhikr: history._sum.count || 0,
-            byPhrase: byPhrase.map(p => ({ phrase: p.phrase, count: p._sum.count })),
+            byPhrase: byPhrase.map(p => ({
+                phraseArabic: p.phraseArabic,
+                phraseEnglish: p.phraseEnglish,
+                count: p._sum.count
+            })),
             recentActivity
         };
     }
@@ -133,6 +147,7 @@ let DhikrService = class DhikrService {
 exports.DhikrService = DhikrService;
 exports.DhikrService = DhikrService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        dhikr_dictionary_service_1.DhikrDictionaryService])
 ], DhikrService);
 //# sourceMappingURL=dhikr.service.js.map

@@ -357,43 +357,50 @@ model UserQuranProgress {
 // ============================================
 
 model DhikrCounter {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  name        String
-  phrase      String
-  count       Int      @default(0)
-  targetCount Int?     @map("target_count")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  name           String
+  phraseArabic   String   @map("phrase_arabic")
+  phraseTranslit String?  @map("phrase_transliteration")
+  phraseEnglish  String   @map("phrase_english")
+  count          Int      @default(0)
+  targetCount    Int?     @map("target_count")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@index([userId, isActive])
+  @@index([phraseArabic])
   @@map("dhikr_counters")
 }
 
 model DhikrGoal {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  phrase      String
-  targetCount Int      @map("target_count")
-  period      String // daily, weekly, monthly
-  startDate   DateTime @map("start_date") @db.Date
-  endDate     DateTime @map("end_date") @db.Date
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  phraseArabic   String   @map("phrase_arabic")
+  phraseTranslit String?  @map("phrase_transliteration")
+  phraseEnglish  String   @map("phrase_english")
+  targetCount    Int      @map("target_count")
+  period         String // daily, weekly, monthly
+  startDate      DateTime @map("start_date") @db.Date
+  endDate        DateTime @map("end_date") @db.Date
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([userId])
   @@map("dhikr_goals")
 }
 
 model DhikrHistory {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  phrase    String
-  count     Int
-  date      DateTime @db.Date
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  phraseArabic   String   @map("phrase_arabic")
+  phraseTranslit String?  @map("phrase_transliteration")
+  phraseEnglish  String   @map("phrase_english")
+  count          Int
+  date           DateTime @db.Date
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  @@unique([userId, phrase, date])
+  @@unique([userId, phraseArabic, date])
   @@index([userId, date])
   @@map("dhikr_history")
 }

@@ -1,6 +1,7 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+// Request DTOs
 export class CreateCounterDto {
   @IsNotEmpty()
   @IsString()
@@ -8,7 +9,7 @@ export class CreateCounterDto {
 
   @IsNotEmpty()
   @IsString()
-  phrase: string;
+  phrase: string; // Can be Arabic or English
 
   @IsOptional()
   @IsNumber()
@@ -24,7 +25,7 @@ export class UpdateCounterDto {
 export class CreateGoalDto {
   @IsNotEmpty()
   @IsString()
-  phrase: string;
+  phrase: string; // Can be Arabic or English
 
   @IsNotEmpty()
   @IsNumber()
@@ -37,4 +38,43 @@ export class CreateGoalDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+}
+
+// Response DTOs
+export class DhikrCounterResponseDto {
+  id: string;
+  userId: string;
+  name: string;
+  phraseArabic: string;
+  phraseTranslit?: string;
+  phraseEnglish: string;
+  count: number;
+  targetCount?: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class DhikrGoalResponseDto {
+  id: string;
+  userId: string;
+  phraseArabic: string;
+  phraseTranslit?: string;
+  phraseEnglish: string;
+  targetCount: number;
+  period: string;
+  startDate: Date;
+  endDate: Date;
+  createdAt: Date;
+}
+
+export class DhikrHistoryResponseDto {
+  id: string;
+  userId: string;
+  phraseArabic: string;
+  phraseTranslit?: string;
+  phraseEnglish: string;
+  count: number;
+  date: Date;
+  createdAt: Date;
 }

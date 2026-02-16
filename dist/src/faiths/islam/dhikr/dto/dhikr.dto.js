@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateGoalDto = exports.UpdateCounterDto = exports.CreateCounterDto = void 0;
+exports.DhikrHistoryResponseDto = exports.DhikrGoalResponseDto = exports.DhikrCounterResponseDto = exports.CreateGoalDto = exports.UpdateCounterDto = exports.CreateCounterDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateCounterDto {
 }
@@ -60,4 +60,13 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateGoalDto.prototype, "endDate", void 0);
+class DhikrCounterResponseDto {
+}
+exports.DhikrCounterResponseDto = DhikrCounterResponseDto;
+class DhikrGoalResponseDto {
+}
+exports.DhikrGoalResponseDto = DhikrGoalResponseDto;
+class DhikrHistoryResponseDto {
+}
+exports.DhikrHistoryResponseDto = DhikrHistoryResponseDto;
 //# sourceMappingURL=dhikr.dto.js.map

@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../common/utils/prisma.service';
+import { DhikrDictionaryService } from './dhikr-dictionary.service';
 
 @Injectable()
 export class DhikrService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private dictionaryService: DhikrDictionaryService,
+  ) {}
 
   async getCounters(userId: string) {
     return this.prisma.dhikrCounter.findMany({
@@ -13,11 +17,16 @@ export class DhikrService {
   }
 
   async createCounter(userId: string, data: { name: string; phrase: string; targetCount?: number }) {
+    // Resolve phrase using dictionary service
+    const resolvedPhrase = this.dictionaryService.resolvePhrase(data.phrase);
+
     return this.prisma.dhikrCounter.create({
       data: {
         userId,
         name: data.name,
-        phrase: data.phrase,
+        phraseArabic: resolvedPhrase.arabic,
+        phraseTranslit: resolvedPhrase.transliteration,
+        phraseEnglish: resolvedPhrase.english,
         targetCount: data.targetCount,
       },
     });
@@ -46,9 +55,9 @@ export class DhikrService {
         // 2. Update history
         await tx.dhikrHistory.upsert({
             where: {
-                userId_phrase_date: {
+                userId_phraseArabic_date: {
                     userId: counter.userId,
-                    phrase: counter.phrase,
+                    phraseArabic: counter.phraseArabic,
                     date: today,
                 }
             },
@@ -57,7 +66,9 @@ export class DhikrService {
             },
             create: {
                 userId: counter.userId,
-                phrase: counter.phrase,
+                phraseArabic: counter.phraseArabic,
+                phraseTranslit: counter.phraseTranslit,
+                phraseEnglish: counter.phraseEnglish,
                 date: today,
                 count: count
             }
@@ -81,8 +92,10 @@ export class DhikrService {
   }
 
   async createGoal(userId: string, data: { phrase: string; targetCount: number; period: string; endDate?: string }) {
+      // Resolve phrase using dictionary service
+      const resolvedPhrase = this.dictionaryService.resolvePhrase(data.phrase);
+
       const today = new Date();
-      // Default end date ? 
       const start = new Date(today);
       let end = data.endDate ? new Date(data.endDate) : new Date(today);
       if (!data.endDate) {
@@ -94,7 +107,9 @@ export class DhikrService {
       return this.prisma.dhikrGoal.create({
           data: {
               userId,
-              phrase: data.phrase,
+              phraseArabic: resolvedPhrase.arabic,
+              phraseTranslit: resolvedPhrase.transliteration,
+              phraseEnglish: resolvedPhrase.english,
               targetCount: data.targetCount,
               period: data.period,
               startDate: start,
@@ -122,7 +137,7 @@ export class DhikrService {
 
     // Counts by phrase
     const byPhrase = await this.prisma.dhikrHistory.groupBy({
-        by: ['phrase'],
+        by: ['phraseArabic', 'phraseEnglish'],
         where: { userId },
         _sum: { count: true }
     });
@@ -130,9 +145,9 @@ export class DhikrService {
     // Last 7 days activity
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-    
+
     const recentActivity = await this.prisma.dhikrHistory.findMany({
-        where: { 
+        where: {
             userId,
             date: { gte: lastWeek }
         },
@@ -141,7 +156,11 @@ export class DhikrService {
 
     return {
         totalDhikr: history._sum.count || 0,
-        byPhrase: byPhrase.map(p => ({ phrase: p.phrase, count: p._sum.count })),
+        byPhrase: byPhrase.map(p => ({
+            phraseArabic: p.phraseArabic,
+            phraseEnglish: p.phraseEnglish,
+            count: p._sum.count
+        })),
         recentActivity
     };
   }

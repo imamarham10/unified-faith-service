@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
 import { DhikrService } from '../services/dhikr.service';
+import { DhikrDictionaryService } from '../services/dhikr-dictionary.service';
 import { CreateCounterDto, CreateGoalDto, UpdateCounterDto } from '../dto/dhikr.dto';
 import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../../../auth-service/decorators/current-user.decorator';
@@ -7,7 +8,10 @@ import { CurrentUser, CurrentUserData } from '../../../../auth-service/decorator
 @Controller('api/v1/islam/dhikr')
 @UseGuards(JwtAuthGuard)
 export class DhikrController {
-  constructor(private readonly dhikrService: DhikrService) {}
+  constructor(
+    private readonly dhikrService: DhikrService,
+    private readonly dictionaryService: DhikrDictionaryService,
+  ) {}
 
   @Get('counters')
   async getCounters(@CurrentUser() user: CurrentUserData) {
@@ -46,5 +50,10 @@ export class DhikrController {
   @Get('stats')
   async getStats(@CurrentUser() user: CurrentUserData) {
     return this.dhikrService.getStats(user.userId);
+  }
+
+  @Get('phrases')
+  async getAvailablePhrases() {
+    return this.dictionaryService.getAllPhrases();
   }
 }
