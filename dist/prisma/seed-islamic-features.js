@@ -5,6 +5,7 @@ const client_1 = require("@prisma/client");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const pg_1 = require("pg");
 const https = require("https");
+const seed_muhammad_names_1 = require("./seed-muhammad-names");
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
     console.error('❌ DATABASE_URL not set');
@@ -37,6 +38,7 @@ async function main() {
     console.log('🌙 Starting Islamic features seed...');
     try {
         await seedAllahNames();
+        await (0, seed_muhammad_names_1.seedMuhammadNames)(prisma);
         await seedCalculationMethods();
         await seedIslamicEvents();
         await seedDuas();

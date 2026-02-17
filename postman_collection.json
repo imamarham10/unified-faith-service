@@ -1038,6 +1038,105 @@
 			]
 		},
 		{
+			"name": "Names of Muhammad (saw)",
+			"item": [
+				{
+					"name": "Get All Names",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/muhammad",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "muhammad"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Name by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/muhammad/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "muhammad", "1"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Name",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/muhammad/daily",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "muhammad", "daily"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Favorite Name",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nameId\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/muhammad/favorites",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "muhammad", "favorites"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Favorite Names",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/islam/names/muhammad/favorites/list",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "islam", "names", "muhammad", "favorites", "list"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Feelings",
 			"item": [
 				{

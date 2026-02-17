@@ -31,4 +31,35 @@ export class NamesController {
   async getDailyName() {
     return this.namesService.getDailyName();
   }
+
+  // Muhammad Names endpoints
+  @Get('muhammad')
+  async getAllMuhammadNames() {
+    return this.namesService.getAllMuhammadNames();
+  }
+
+  @Get('muhammad/:id')
+  async getMuhammadName(@Param('id') id: string) {
+    return this.namesService.getMuhammadName(parseInt(id));
+  }
+
+  @Post('muhammad/favorites')
+  @UseGuards(JwtAuthGuard)
+  async addMuhammadFavorite(
+    @CurrentUser() user: any,
+    @Body(ValidationPipe) favoriteDto: CreateFavoriteDto,
+  ) {
+    return this.namesService.addMuhammadFavorite(user.userId, favoriteDto.nameId);
+  }
+
+  @Get('muhammad/favorites/list')
+  @UseGuards(JwtAuthGuard)
+  async getUserMuhammadFavorites(@CurrentUser() user: any) {
+    return this.namesService.getUserMuhammadFavorites(user.userId);
+  }
+
+  @Get('muhammad/daily')
+  async getDailyMuhammadName() {
+    return this.namesService.getDailyMuhammadName();
+  }
 }

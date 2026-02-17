@@ -21,8 +21,8 @@ export declare class PrayersController {
         };
     }>;
     getCurrentPrayer(lat: string, lng: string, method?: string): Promise<{
-        current: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
-        next: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
+        current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
+        next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
         date: string;
         remainingTime: string;
     }>;

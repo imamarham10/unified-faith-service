@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as https from 'https';
+import { seedMuhammadNames } from './seed-muhammad-names';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -42,6 +43,9 @@ async function main() {
     try {
         // 1. Seed 99 Names of Allah
         await seedAllahNames();
+
+        // 1.5. Seed 99 Names of Muhammad (saw)
+        await seedMuhammadNames(prisma);
 
         // 2. Seed Prayer Calculation Methods
         await seedCalculationMethods();

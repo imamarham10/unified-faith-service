@@ -50,6 +50,53 @@ let NamesService = class NamesService {
         const id = (dayOfYear % 99) + 1;
         return this.getName(id);
     }
+    async getAllMuhammadNames() {
+        return this.prisma.muhammadName.findMany({
+            orderBy: {
+                id: 'asc',
+            },
+        });
+    }
+    async getMuhammadName(id) {
+        const name = await this.prisma.muhammadName.findUnique({
+            where: { id },
+        });
+        if (!name) {
+            throw new Error(`Muhammad's name with ID ${id} not found`);
+        }
+        return name;
+    }
+    async addMuhammadFavorite(userId, nameId) {
+        await this.getMuhammadName(nameId);
+        return this.prisma.userFavoriteMuhammadName.create({
+            data: {
+                userId,
+                nameId,
+            },
+        });
+    }
+    async getDailyMuhammadName() {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), 0, 0);
+        const diff = today.getTime() - start.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dayOfYear = Math.floor(diff / oneDay);
+        const id = (dayOfYear % 99) + 1;
+        return this.getMuhammadName(id);
+    }
+    async getUserMuhammadFavorites(userId) {
+        const favorites = await this.prisma.userFavoriteMuhammadName.findMany({
+            where: { userId },
+        });
+        const nameIds = favorites.map((f) => f.nameId);
+        if (nameIds.length === 0) {
+            return [];
+        }
+        return this.prisma.muhammadName.findMany({
+            where: { id: { in: nameIds } },
+            orderBy: { id: 'asc' },
+        });
+    }
 };
 exports.NamesService = NamesService;
 exports.NamesService = NamesService = __decorate([

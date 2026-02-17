@@ -9,8 +9,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -26,8 +26,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -39,8 +39,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -52,8 +52,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;

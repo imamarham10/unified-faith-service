@@ -11,8 +11,8 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -24,8 +24,8 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -37,8 +37,8 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -50,8 +50,8 @@ export declare class DhikrController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         isActive: boolean;
+        userId: string;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;

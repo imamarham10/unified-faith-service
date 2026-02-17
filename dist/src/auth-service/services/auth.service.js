@@ -127,8 +127,8 @@ let AuthService = class AuthService {
         const accessToken = await this.tokenService.generateAccessToken(jwtPayload);
         const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
         return {
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 email: user.email,
@@ -177,8 +177,8 @@ let AuthService = class AuthService {
         const accessToken = await this.tokenService.generateAccessToken(jwtPayload);
         const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
         return {
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 email: user.email,
@@ -189,6 +189,17 @@ let AuthService = class AuthService {
     }
     async refreshToken(refreshToken, deviceInfo) {
         const { userId, tokenId } = await this.tokenService.validateRefreshToken(refreshToken);
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            await this.tokenService.revokeRefreshToken(tokenId, 'user_not_found');
+            throw new common_1.UnauthorizedException('User not found');
+        }
+        if (!user.isActive) {
+            await this.tokenService.revokeRefreshToken(tokenId, 'user_inactive');
+            throw new common_1.UnauthorizedException('User is inactive');
+        }
         const userRoles = await this.prisma.userRole.findMany({
             where: { userId },
             include: { role: true },
@@ -197,7 +208,7 @@ let AuthService = class AuthService {
         const permissions = await this.rolesService.getAllPermissionsByRoles(roleNames);
         const jwtPayload = {
             sub: userId,
-            email: 'user@example.com',
+            email: user.email,
             roles: roleNames,
             permissions,
         };
@@ -205,8 +216,8 @@ let AuthService = class AuthService {
         const newRefreshToken = await this.tokenService.rotateRefreshToken(tokenId, userId, deviceInfo);
         await this.tokenService.updateLastUsed(tokenId);
         return {
-            access_token: accessToken,
-            refresh_token: newRefreshToken,
+            accessToken,
+            refreshToken: newRefreshToken,
             expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRES_IN', 3600),
         };
     }

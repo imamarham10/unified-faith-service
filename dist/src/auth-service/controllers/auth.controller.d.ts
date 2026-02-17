@@ -18,8 +18,8 @@ export declare class AuthController {
         createdAt: Date;
     }>;
     login(loginDto: LoginDto, req: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         user: {
             id: string;
             email: string;
@@ -32,8 +32,8 @@ export declare class AuthController {
         expiresIn: number;
     }>;
     verifyOtp(verifyOtpDto: VerifyOtpDto, req: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         user: {
             id: string;
             email: string;
@@ -42,8 +42,8 @@ export declare class AuthController {
         expiresIn: number;
     }>;
     refreshToken(refreshTokenDto: RefreshTokenDto, req: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         expiresIn: number;
     }>;
     logout(user: CurrentUserData, body?: {

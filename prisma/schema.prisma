@@ -516,6 +516,33 @@ model UserFavoriteAllahName {
 }
 
 // ============================================
+// Islamic Features - Names of Muhammad
+// ============================================
+
+model MuhammadName {
+  id           Int     @id
+  nameArabic   String  @map("name_arabic")
+  nameTranslit String  @map("name_transliteration")
+  nameEnglish  String  @map("name_english")
+  meaning      String
+  description  String? @db.Text
+  audioUrl     String? @map("audio_url")
+
+  @@map("muhammad_names")
+}
+
+model UserFavoriteMuhammadName {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  nameId    Int      @map("name_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, nameId])
+  @@index([userId])
+  @@map("user_favorite_muhammad_names")
+}
+
+// ============================================
 // Islamic Features - Qibla
 // ============================================
 

@@ -8,8 +8,8 @@ export declare class PrayerCalculationsService {
         isha: Date;
     };
     getCurrentPrayer(lat: number, lng: number, date?: Date, methodSlug?: string): {
-        current: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
-        next: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
+        current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
+        next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
         times: {
             fajr: Date;
             sunrise: Date;

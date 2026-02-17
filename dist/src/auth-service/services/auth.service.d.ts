@@ -23,8 +23,8 @@ export declare class AuthService {
         createdAt: Date;
     }>;
     login(loginDto: LoginDto, deviceInfo?: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         user: {
             id: string;
             email: string;
@@ -37,8 +37,8 @@ export declare class AuthService {
         expiresIn: number;
     }>;
     verifyOtp(email: string, otp: string, deviceInfo?: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         user: {
             id: string;
             email: string;
@@ -47,8 +47,8 @@ export declare class AuthService {
         expiresIn: number;
     }>;
     refreshToken(refreshToken: string, deviceInfo?: any): Promise<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         expiresIn: number;
     }>;
     logout(userId: string, refreshToken?: string): Promise<{

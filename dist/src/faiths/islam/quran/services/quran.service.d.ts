@@ -14,16 +14,16 @@ export declare class QuranService {
         verses: ({
             translations: {
                 id: string;
-                text: string;
                 language: string;
                 verseId: string;
                 authorName: string;
+                text: string;
             }[];
         } & {
             id: string;
-            textArabic: string;
             surahId: number;
             verseNumber: number;
+            textArabic: string;
             textSimple: string;
         })[];
     } & {
@@ -45,16 +45,16 @@ export declare class QuranService {
         };
         translations: {
             id: string;
-            text: string;
             language: string;
             verseId: string;
             authorName: string;
+            text: string;
         }[];
     } & {
         id: string;
-        textArabic: string;
         surahId: number;
         verseNumber: number;
+        textArabic: string;
         textSimple: string;
     }>;
     searchVerses(query: string, language?: string): Promise<({
@@ -68,16 +68,16 @@ export declare class QuranService {
         };
         translations: {
             id: string;
-            text: string;
             language: string;
             verseId: string;
             authorName: string;
+            text: string;
         }[];
     } & {
         id: string;
-        textArabic: string;
         surahId: number;
         verseNumber: number;
+        textArabic: string;
         textSimple: string;
     })[]>;
     addBookmark(userId: string, data: {
@@ -87,17 +87,17 @@ export declare class QuranService {
     }): Promise<{
         id: string;
         createdAt: Date;
+        userId: string;
         surahId: number;
         verseNumber: number;
-        userId: string;
         note: string | null;
     }>;
     getBookmarks(userId: string): Promise<{
         id: string;
         createdAt: Date;
+        userId: string;
         surahId: number;
         verseNumber: number;
-        userId: string;
         note: string | null;
     }[]>;
 }

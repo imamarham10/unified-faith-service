@@ -16,16 +16,16 @@ export declare class QuranController {
         verses: ({
             translations: {
                 id: string;
-                text: string;
                 language: string;
                 verseId: string;
                 authorName: string;
+                text: string;
             }[];
         } & {
             id: string;
-            textArabic: string;
             surahId: number;
             verseNumber: number;
+            textArabic: string;
             textSimple: string;
         })[];
     } & {
@@ -47,16 +47,16 @@ export declare class QuranController {
         };
         translations: {
             id: string;
-            text: string;
             language: string;
             verseId: string;
             authorName: string;
+            text: string;
         }[];
     } & {
         id: string;
-        textArabic: string;
         surahId: number;
         verseNumber: number;
+        textArabic: string;
         textSimple: string;
     }>;
     searchVerses(query: string, lang?: string): Promise<({
@@ -70,32 +70,32 @@ export declare class QuranController {
         };
         translations: {
             id: string;
-            text: string;
             language: string;
             verseId: string;
             authorName: string;
+            text: string;
         }[];
     } & {
         id: string;
-        textArabic: string;
         surahId: number;
         verseNumber: number;
+        textArabic: string;
         textSimple: string;
     })[]>;
     addBookmark(user: CurrentUserData, body: AddBookmarkDto): Promise<{
         id: string;
         createdAt: Date;
+        userId: string;
         surahId: number;
         verseNumber: number;
-        userId: string;
         note: string | null;
     }>;
     getBookmarks(user: CurrentUserData): Promise<{
         id: string;
         createdAt: Date;
+        userId: string;
         surahId: number;
         verseNumber: number;
-        userId: string;
         note: string | null;
     }[]>;
 }
