@@ -110,8 +110,8 @@ export class AuthService {
    * Login with email and password
    */
   async login(loginDto: LoginDto, deviceInfo?: any): Promise<{
-    access_token: string;
-    refresh_token: string;
+    accessToken: string;
+    refreshToken: string;
     user: {
       id: string;
       email: string;
@@ -194,8 +194,8 @@ export class AuthService {
     const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -223,8 +223,8 @@ export class AuthService {
    * Verify OTP and generate tokens
    */
   async verifyOtp(email: string, otp: string, deviceInfo?: any): Promise<{
-    access_token: string;
-    refresh_token: string;
+    accessToken: string;
+    refreshToken: string;
     user: {
       id: string;
       email: string;
@@ -293,8 +293,8 @@ export class AuthService {
     const refreshToken = await this.tokenService.generateRefreshToken(user.id, deviceInfo);
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -308,19 +308,27 @@ export class AuthService {
    * Refresh access token
    */
   async refreshToken(refreshToken: string, deviceInfo?: any): Promise<{
-    access_token: string;
-    refresh_token: string;
+    accessToken: string;
+    refreshToken: string;
     expiresIn: number;
   }> {
     // Validate refresh token
     const { userId, tokenId } = await this.tokenService.validateRefreshToken(refreshToken);
 
-    // TODO: Get user from users-service to verify still active
-    // const user = await this.usersServiceClient.getUser(userId);
-    // if (!user || !user.isActive) {
-    //   await this.tokenService.revokeRefreshToken(tokenId, 'user_inactive');
-    //   throw new UnauthorizedException('User not found or inactive');
-    // }
+    // Get user from database to verify still exists and active
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      await this.tokenService.revokeRefreshToken(tokenId, 'user_not_found');
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.isActive) {
+      await this.tokenService.revokeRefreshToken(tokenId, 'user_inactive');
+      throw new UnauthorizedException('User is inactive');
+    }
 
     // Get user roles
     const userRoles = await this.prisma.userRole.findMany({
@@ -334,7 +342,7 @@ export class AuthService {
     // Generate new tokens (rotate refresh token)
     const jwtPayload: JwtPayload = {
       sub: userId,
-      email: 'user@example.com', // TODO: Get from users-service
+      email: user.email, // Use actual user email
       roles: roleNames,
       permissions,
     };
@@ -346,8 +354,8 @@ export class AuthService {
     await this.tokenService.updateLastUsed(tokenId);
 
     return {
-      access_token: accessToken,
-      refresh_token: newRefreshToken,
+      accessToken,
+      refreshToken: newRefreshToken,
       expiresIn: this.configService.get<number>('JWT_ACCESS_TOKEN_EXPIRES_IN', 3600),
     };
   }
