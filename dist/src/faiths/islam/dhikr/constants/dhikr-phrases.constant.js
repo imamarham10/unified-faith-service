@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DHIKR_BY_ENGLISH = exports.DHIKR_BY_ARABIC = exports.COMMON_DHIKR_PHRASES = void 0;
+exports.DHIKR_BY_TRANSLITERATION = exports.DHIKR_BY_ENGLISH = exports.DHIKR_BY_ARABIC = exports.COMMON_DHIKR_PHRASES = void 0;
 exports.normalizeArabic = normalizeArabic;
 exports.normalizeEnglish = normalizeEnglish;
 exports.COMMON_DHIKR_PHRASES = [
@@ -135,4 +135,5 @@ function normalizeEnglish(text) {
 }
 exports.DHIKR_BY_ARABIC = new Map(exports.COMMON_DHIKR_PHRASES.map(phrase => [normalizeArabic(phrase.arabic), phrase]));
 exports.DHIKR_BY_ENGLISH = new Map(exports.COMMON_DHIKR_PHRASES.map(phrase => [normalizeEnglish(phrase.english), phrase]));
+exports.DHIKR_BY_TRANSLITERATION = new Map(exports.COMMON_DHIKR_PHRASES.map(phrase => [normalizeEnglish(phrase.transliteration), phrase]));
 //# sourceMappingURL=dhikr-phrases.constant.js.map

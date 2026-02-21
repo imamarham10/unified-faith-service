@@ -4,22 +4,7 @@ import { CurrentUserData } from '../../../../auth-service/decorators/current-use
 export declare class PrayersController {
     private readonly prayersService;
     constructor(prayersService: PrayersService);
-    getPrayerTimes(query: GetPrayerTimesDto): Promise<{
-        date: string;
-        location: {
-            lat: number;
-            lng: number;
-        };
-        method: string;
-        times: {
-            fajr: string;
-            sunrise: string;
-            dhuhr: string;
-            asr: string;
-            maghrib: string;
-            isha: string;
-        };
-    }>;
+    getPrayerTimes(query: GetPrayerTimesDto): Promise<any>;
     getCurrentPrayer(lat: string, lng: string, method?: string): Promise<{
         current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
         next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
@@ -44,6 +29,15 @@ export declare class PrayersController {
         loggedAt: Date;
         status: string;
     }[]>;
+    deletePrayerLog(user: CurrentUserData, id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        date: Date;
+        prayerName: string;
+        loggedAt: Date;
+        status: string;
+    }>;
     getPrayerStats(user: CurrentUserData): Promise<{
         userId: string;
         totalPrayers: number;

@@ -23,17 +23,17 @@ let CalendarController = class CalendarController {
         this.calendarService = calendarService;
     }
     async getToday(query) {
-        return this.calendarService.getToday(query.timezone);
+        return this.calendarService.getToday(query.timezone, query.calendarAdjust ?? 0);
     }
     async convertToHijri(query) {
         const date = query.date ? new Date(query.date) : new Date();
-        return this.calendarService.gregorianToHijri(date, query.timezone);
+        return this.calendarService.gregorianToHijri(date, query.timezone, query.calendarAdjust ?? 0);
     }
     async convertToGregorian(query) {
         return this.calendarService.hijriToGregorian(query.year, query.month, query.day, query.timezone);
     }
     async getGregorianMonth(query) {
-        return this.calendarService.getGregorianMonthCalendar(query.year, query.month, query.timezone);
+        return this.calendarService.getGregorianMonthCalendar(query.year, query.month, query.timezone, query.calendarAdjust ?? 0);
     }
     async getHijriMonth(query) {
         return this.calendarService.getHijriMonthCalendar(query.year, query.month, query.timezone);
@@ -42,7 +42,7 @@ let CalendarController = class CalendarController {
         return this.calendarService.getAllEvents();
     }
     async getUpcomingEvents(query) {
-        return this.calendarService.getUpcomingEvents(query.days, query.timezone);
+        return this.calendarService.getUpcomingEvents(query.days, query.timezone, query.calendarAdjust ?? 0);
     }
     async getHijriMonths() {
         return this.calendarService.getHijriMonthNames();

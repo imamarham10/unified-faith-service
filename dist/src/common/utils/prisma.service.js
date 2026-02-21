@@ -22,19 +22,23 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
             throw new Error('DATABASE_URL is not set in environment variables. ' +
                 'Please set DATABASE_URL in your .env file.');
         }
+        let superOptions;
+        let pgPool = null;
         if (databaseUrl.startsWith('prisma+')) {
-            super({ accelerateUrl: databaseUrl });
+            superOptions = { accelerateUrl: databaseUrl };
         }
         else {
-            const pool = new pg_1.Pool({
+            pgPool = new pg_1.Pool({
                 connectionString: databaseUrl,
-                ssl: {
-                    rejectUnauthorized: false,
-                },
+                ssl: { rejectUnauthorized: false },
+                max: 3,
+                idleTimeoutMillis: 10000,
+                connectionTimeoutMillis: 5000,
             });
-            const adapter = new adapter_pg_1.PrismaPg(pool);
-            super({ adapter });
+            superOptions = { adapter: new adapter_pg_1.PrismaPg(pgPool) };
         }
+        super(superOptions);
+        this.pool = pgPool;
         this.logger = new common_1.Logger(PrismaService_1.name);
     }
     async onModuleInit() {
@@ -56,6 +60,15 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
         }
         catch (error) {
             this.logger.warn('Error disconnecting from database:', error.message);
+        }
+        if (this.pool) {
+            try {
+                await this.pool.end();
+                this.logger.log('Connection pool drained');
+            }
+            catch (error) {
+                this.logger.warn('Error draining connection pool:', error.message);
+            }
         }
     }
 };

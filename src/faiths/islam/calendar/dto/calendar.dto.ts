@@ -9,6 +9,13 @@ export class ConvertToHijriDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone (e.g., 'Asia/Kolkata', 'America/New_York')
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0; // 0=standard/Gulf, 1=India/Pakistan/Bangladesh
 }
 
 export class ConvertToGregorianDto {
@@ -51,6 +58,13 @@ export class GetGregorianMonthDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0;
 }
 
 export class GetHijriMonthDto {
@@ -82,10 +96,24 @@ export class GetUpcomingEventsDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0; // 0=standard/Gulf, 1=India/Pakistan/Bangladesh
 }
 
 export class GetTodayDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone, defaults to UTC if not provided
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0;
 }

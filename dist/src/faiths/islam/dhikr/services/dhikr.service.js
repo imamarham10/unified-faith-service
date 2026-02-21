@@ -49,7 +49,7 @@ let DhikrService = class DhikrService {
         return this.prisma.$transaction(async (tx) => {
             const updatedCounter = await tx.dhikrCounter.update({
                 where: { id },
-                data: { count: { increment: count } }
+                data: { count: { increment: count } },
             });
             await tx.dhikrHistory.upsert({
                 where: {
@@ -57,10 +57,10 @@ let DhikrService = class DhikrService {
                         userId: counter.userId,
                         phraseArabic: counter.phraseArabic,
                         date: today,
-                    }
+                    },
                 },
                 update: {
-                    count: { increment: count }
+                    count: { increment: count },
                 },
                 create: {
                     userId: counter.userId,
@@ -68,15 +68,15 @@ let DhikrService = class DhikrService {
                     phraseTranslit: counter.phraseTranslit,
                     phraseEnglish: counter.phraseEnglish,
                     date: today,
-                    count: count
-                }
+                    count: count,
+                },
             });
             return updatedCounter;
         });
     }
     async deleteCounter(id) {
         return this.prisma.dhikrCounter.delete({
-            where: { id }
+            where: { id },
         });
     }
     async createGoal(userId, data) {
@@ -102,46 +102,136 @@ let DhikrService = class DhikrService {
                 period: data.period,
                 startDate: start,
                 endDate: end,
-            }
+            },
         });
     }
     async getGoals(userId) {
         const today = new Date();
-        return this.prisma.dhikrGoal.findMany({
+        today.setHours(0, 0, 0, 0);
+        const goals = await this.prisma.dhikrGoal.findMany({
             where: {
                 userId,
-                endDate: { gte: today }
-            }
+                endDate: { gte: today },
+            },
+            orderBy: { createdAt: 'desc' },
         });
+        return Promise.all(goals.map(async (goal) => {
+            let progressFrom;
+            if (goal.period === 'daily') {
+                progressFrom = new Date(today);
+            }
+            else {
+                progressFrom = new Date(goal.startDate);
+                progressFrom.setHours(0, 0, 0, 0);
+            }
+            const progressResult = await this.prisma.dhikrHistory.aggregate({
+                where: {
+                    userId,
+                    phraseArabic: goal.phraseArabic,
+                    date: { gte: progressFrom },
+                },
+                _sum: { count: true },
+            });
+            const currentCount = progressResult._sum.count || 0;
+            const progressPercent = Math.min(Math.round((currentCount / goal.targetCount) * 100), 100);
+            const endDate = new Date(goal.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            const msLeft = endDate.getTime() - today.getTime();
+            const daysRemaining = Math.max(0, Math.ceil(msLeft / 86400000));
+            return {
+                ...goal,
+                currentCount,
+                progressPercent,
+                daysRemaining,
+                isComplete: currentCount >= goal.targetCount,
+            };
+        }));
     }
     async getStats(userId) {
-        const history = await this.prisma.dhikrHistory.aggregate({
+        const historyAggregate = await this.prisma.dhikrHistory.aggregate({
             where: { userId },
-            _sum: { count: true }
+            _sum: { count: true },
         });
+        const totalCount = historyAggregate._sum.count || 0;
         const byPhrase = await this.prisma.dhikrHistory.groupBy({
             by: ['phraseArabic', 'phraseEnglish'],
             where: { userId },
-            _sum: { count: true }
+            _sum: { count: true },
+            orderBy: { _sum: { count: 'desc' } },
         });
+        const mostRecitedPhrase = byPhrase.length > 0 ? (byPhrase[0].phraseEnglish || null) : null;
+        const allHistory = await this.prisma.dhikrHistory.findMany({
+            where: { userId },
+            select: { date: true },
+            orderBy: { date: 'desc' },
+        });
+        const activeDays = allHistory.length;
+        const dailyAverage = activeDays > 0 ? Math.round(totalCount / activeDays) : 0;
+        const ONE_DAY = 86400000;
+        let currentStreak = 0;
+        let longestStreak = 0;
+        if (allHistory.length > 0) {
+            const rawTimestamps = allHistory.map((h) => {
+                const d = new Date(h.date);
+                d.setHours(0, 0, 0, 0);
+                return d.getTime();
+            });
+            const uniqueDates = [...new Set(rawTimestamps)].sort((a, b) => b - a);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayMs = today.getTime();
+            const yesterdayMs = todayMs - ONE_DAY;
+            if (uniqueDates[0] >= yesterdayMs) {
+                currentStreak = 1;
+                for (let i = 1; i < uniqueDates.length; i++) {
+                    if (uniqueDates[i] === uniqueDates[i - 1] - ONE_DAY) {
+                        currentStreak++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+            let run = 1;
+            longestStreak = 1;
+            for (let i = 1; i < uniqueDates.length; i++) {
+                if (uniqueDates[i] === uniqueDates[i - 1] - ONE_DAY) {
+                    run++;
+                    if (run > longestStreak)
+                        longestStreak = run;
+                }
+                else {
+                    run = 1;
+                }
+            }
+        }
         const lastWeek = new Date();
         lastWeek.setDate(lastWeek.getDate() - 7);
         const recentActivity = await this.prisma.dhikrHistory.findMany({
-            where: {
-                userId,
-                date: { gte: lastWeek }
-            },
-            orderBy: { date: 'asc' }
+            where: { userId, date: { gte: lastWeek } },
+            orderBy: { date: 'asc' },
         });
         return {
-            totalDhikr: history._sum.count || 0,
-            byPhrase: byPhrase.map(p => ({
+            totalCount,
+            totalDhikr: totalCount,
+            currentStreak,
+            longestStreak,
+            dailyAverage,
+            mostRecitedPhrase,
+            byPhrase: byPhrase.map((p) => ({
                 phraseArabic: p.phraseArabic,
                 phraseEnglish: p.phraseEnglish,
-                count: p._sum.count
+                count: p._sum.count || 0,
             })),
-            recentActivity
+            recentActivity,
         };
+    }
+    async getHistory(userId, limit = 30) {
+        return this.prisma.dhikrHistory.findMany({
+            where: { userId },
+            orderBy: { date: 'desc' },
+            take: limit,
+        });
     }
 };
 exports.DhikrService = DhikrService;

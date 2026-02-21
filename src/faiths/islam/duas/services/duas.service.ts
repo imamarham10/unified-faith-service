@@ -6,42 +6,129 @@ export class DuasService {
   constructor(private prisma: PrismaService) {}
 
   async getDuas(filters: any) {
-    // TODO: Fetch duas with filters
-    return [];
+    const where: any = {};
+
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    return (this.prisma as any).dua.findMany({
+      where,
+      include: {
+        category: true,
+      },
+    });
   }
 
   async getDua(id: string) {
-    // TODO: Fetch specific dua
-    return null;
+    return (this.prisma as any).dua.findUnique({
+      where: { id },
+      include: {
+        category: true,
+      },
+    });
   }
 
   async getCategories() {
-    // TODO: Fetch all dua categories
-    return [];
+    return (this.prisma as any).duaCategory.findMany({
+      orderBy: {
+        name: 'asc',
+      },
+    });
   }
 
   async searchDuas(query: string) {
-    // TODO: Search duas
-    return [];
+    return (this.prisma as any).dua.findMany({
+      where: {
+        OR: [
+          {
+            titleEnglish: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            titleArabic: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            textEnglish: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      },
+      include: {
+        category: true,
+      },
+    });
   }
 
   async createCustomDua(createDuaDto: any) {
-    // TODO: Create custom dua
-    return { success: true };
+    return { success: true, message: 'Custom duas coming soon' };
   }
 
-  async addFavorite(favoriteDto: any) {
-    // TODO: Add dua to favorites
-    return { success: true };
+  async addFavorite(userId: string, duaId: string) {
+    return (this.prisma as any).userFavoriteDua.upsert({
+      where: {
+        userId_duaId: {
+          userId,
+          duaId,
+        },
+      },
+      create: {
+        userId,
+        duaId,
+      },
+      update: {},
+    });
   }
 
   async getFavorites(userId: string) {
-    // TODO: Get user's favorite duas
-    return [];
+    const favorites = await (this.prisma as any).userFavoriteDua.findMany({
+      where: { userId },
+    });
+
+    const duaIds = favorites.map((f: any) => f.duaId);
+    if (duaIds.length === 0) {
+      return [];
+    }
+
+    return (this.prisma as any).dua.findMany({
+      where: {
+        id: { in: duaIds },
+      },
+      include: {
+        category: true,
+      },
+    });
   }
 
   async getDailyDua() {
-    // TODO: Get daily recommended dua
-    return null;
+    const count = await (this.prisma as any).dua.count();
+    if (count === 0) {
+      return null;
+    }
+
+    const today = new Date();
+    const start = new Date(today.getFullYear(), 0, 0);
+    const diff = today.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+
+    const offset = dayOfYear % count;
+
+    const results = await (this.prisma as any).dua.findMany({
+      skip: offset,
+      take: 1,
+      include: {
+        category: true,
+      },
+    });
+
+    return results[0] ?? null;
   }
 }

@@ -78,6 +78,10 @@ export declare class DhikrService {
         endDate: Date;
     }>;
     getGoals(userId: string): Promise<{
+        currentCount: number;
+        progressPercent: number;
+        daysRemaining: number;
+        isComplete: boolean;
         id: string;
         createdAt: Date;
         userId: string;
@@ -90,7 +94,12 @@ export declare class DhikrService {
         endDate: Date;
     }[]>;
     getStats(userId: string): Promise<{
+        totalCount: number;
         totalDhikr: number;
+        currentStreak: number;
+        longestStreak: number;
+        dailyAverage: number;
+        mostRecitedPhrase: string;
         byPhrase: {
             phraseArabic: string;
             phraseEnglish: string;
@@ -107,4 +116,14 @@ export declare class DhikrService {
             count: number;
         }[];
     }>;
+    getHistory(userId: string, limit?: number): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        date: Date;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
+        count: number;
+    }[]>;
 }

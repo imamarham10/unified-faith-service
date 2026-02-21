@@ -38,6 +38,9 @@ let PrayersController = class PrayersController {
     async getPrayerLogs(user, fromDate, toDate) {
         return this.prayersService.getPrayerLogs(user.userId, fromDate, toDate);
     }
+    async deletePrayerLog(user, id) {
+        return this.prayersService.deletePrayerLog(user.userId, id);
+    }
     async getPrayerStats(user) {
         return this.prayersService.getPrayerStats(user.userId);
     }
@@ -80,6 +83,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], PrayersController.prototype, "getPrayerLogs", null);
+__decorate([
+    (0, common_1.Delete)('log/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], PrayersController.prototype, "deletePrayerLog", null);
 __decorate([
     (0, common_1.Get)('stats'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

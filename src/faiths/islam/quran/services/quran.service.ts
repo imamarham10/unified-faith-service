@@ -1,14 +1,31 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject } from '@nestjs/common';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
+
+const CACHE_TTL = {
+  DAY: 24 * 60 * 60 * 1000,
+  WEEK: 7 * 24 * 60 * 60 * 1000,
+};
 
 @Injectable()
 export class QuranService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   async getAllSurahs() {
-    return this.prisma.quranSurah.findMany({
+    const cacheKey = 'quran:surahs';
+    const cached = await this.cacheManager.get<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.prisma.quranSurah.findMany({
       orderBy: { id: 'asc' },
     });
+    await this.cacheManager.set(cacheKey, result, CACHE_TTL.WEEK);
+    return result;
   }
 
   async getSurah(surahId: number, language: string = 'en') {
@@ -140,6 +157,21 @@ export class QuranService {
       // Since there is no relation defined in schema between Bookmark and QuranVerse (it uses surahId/verseNumber integers),
       // we can't using `include`. We'd have to fetch manually or just return metadata.
       // For now returning metadata is fine.
+    });
+  }
+
+  async deleteBookmark(userId: string, bookmarkId: string) {
+    // Verify the bookmark belongs to this user before deleting
+    const bookmark = await this.prisma.userQuranBookmark.findFirst({
+      where: { id: bookmarkId, userId },
+    });
+
+    if (!bookmark) {
+      throw new NotFoundException('Bookmark not found');
+    }
+
+    return this.prisma.userQuranBookmark.delete({
+      where: { id: bookmarkId },
     });
   }
 }

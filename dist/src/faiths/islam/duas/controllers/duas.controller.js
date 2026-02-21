@@ -15,15 +15,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DuasController = void 0;
 const common_1 = require("@nestjs/common");
 const duas_service_1 = require("../services/duas.service");
+const jwt_auth_guard_1 = require("../../../../auth-service/guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../../../auth-service/decorators/current-user.decorator");
 let DuasController = class DuasController {
     constructor(duasService) {
         this.duasService = duasService;
-    }
-    async getDuas(filters) {
-        return this.duasService.getDuas(filters);
-    }
-    async getDua(id) {
-        return this.duasService.getDua(id);
     }
     async getCategories() {
         return this.duasService.getCategories();
@@ -31,34 +27,26 @@ let DuasController = class DuasController {
     async searchDuas(query) {
         return this.duasService.searchDuas(query);
     }
-    async createCustomDua(createDuaDto) {
-        return this.duasService.createCustomDua(createDuaDto);
-    }
-    async addFavorite(favoriteDto) {
-        return this.duasService.addFavorite(favoriteDto);
-    }
-    async getFavorites(userId) {
-        return this.duasService.getFavorites(userId);
-    }
     async getDailyDua() {
         return this.duasService.getDailyDua();
     }
+    async addFavorite(user, body) {
+        return this.duasService.addFavorite(user.userId, body.duaId);
+    }
+    async getFavorites(user) {
+        return this.duasService.getFavorites(user.userId);
+    }
+    async createCustomDua(createDuaDto) {
+        return this.duasService.createCustomDua(createDuaDto);
+    }
+    async getDuas(filters) {
+        return this.duasService.getDuas(filters);
+    }
+    async getDua(id) {
+        return this.duasService.getDua(id);
+    }
 };
 exports.DuasController = DuasController;
-__decorate([
-    (0, common_1.Get)(),
-    __param(0, (0, common_1.Query)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], DuasController.prototype, "getDuas", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], DuasController.prototype, "getDua", null);
 __decorate([
     (0, common_1.Get)('categories'),
     __metadata("design:type", Function),
@@ -73,6 +61,29 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], DuasController.prototype, "searchDuas", null);
 __decorate([
+    (0, common_1.Get)('daily'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DuasController.prototype, "getDailyDua", null);
+__decorate([
+    (0, common_1.Post)('favorites'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], DuasController.prototype, "addFavorite", null);
+__decorate([
+    (0, common_1.Get)('favorites'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DuasController.prototype, "getFavorites", null);
+__decorate([
     (0, common_1.Post)('custom'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -80,25 +91,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], DuasController.prototype, "createCustomDua", null);
 __decorate([
-    (0, common_1.Post)('favorites'),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
-], DuasController.prototype, "addFavorite", null);
+], DuasController.prototype, "getDuas", null);
 __decorate([
-    (0, common_1.Get)('favorites'),
-    __param(0, (0, common_1.Query)('userId')),
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], DuasController.prototype, "getFavorites", null);
-__decorate([
-    (0, common_1.Get)('daily'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], DuasController.prototype, "getDailyDua", null);
+], DuasController.prototype, "getDua", null);
 exports.DuasController = DuasController = __decorate([
     (0, common_1.Controller)('api/v1/islam/duas'),
     __metadata("design:paramtypes", [duas_service_1.DuasService])

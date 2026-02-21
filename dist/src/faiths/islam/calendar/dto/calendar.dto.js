@@ -13,6 +13,9 @@ exports.GetTodayDto = exports.GetUpcomingEventsDto = exports.GetHijriMonthDto = 
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class ConvertToHijriDto {
+    constructor() {
+        this.calendarAdjust = 0;
+    }
 }
 exports.ConvertToHijriDto = ConvertToHijriDto;
 __decorate([
@@ -25,6 +28,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ConvertToHijriDto.prototype, "timezone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(-2),
+    (0, class_validator_1.Max)(2),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], ConvertToHijriDto.prototype, "calendarAdjust", void 0);
 class ConvertToGregorianDto {
 }
 exports.ConvertToGregorianDto = ConvertToGregorianDto;
@@ -55,6 +66,9 @@ __decorate([
     __metadata("design:type", String)
 ], ConvertToGregorianDto.prototype, "timezone", void 0);
 class GetGregorianMonthDto {
+    constructor() {
+        this.calendarAdjust = 0;
+    }
 }
 exports.GetGregorianMonthDto = GetGregorianMonthDto;
 __decorate([
@@ -76,6 +90,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], GetGregorianMonthDto.prototype, "timezone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(-2),
+    (0, class_validator_1.Max)(2),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], GetGregorianMonthDto.prototype, "calendarAdjust", void 0);
 class GetHijriMonthDto {
 }
 exports.GetHijriMonthDto = GetHijriMonthDto;
@@ -101,6 +123,7 @@ __decorate([
 class GetUpcomingEventsDto {
     constructor() {
         this.days = 90;
+        this.calendarAdjust = 0;
     }
 }
 exports.GetUpcomingEventsDto = GetUpcomingEventsDto;
@@ -117,7 +140,18 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], GetUpcomingEventsDto.prototype, "timezone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(-2),
+    (0, class_validator_1.Max)(2),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], GetUpcomingEventsDto.prototype, "calendarAdjust", void 0);
 class GetTodayDto {
+    constructor() {
+        this.calendarAdjust = 0;
+    }
 }
 exports.GetTodayDto = GetTodayDto;
 __decorate([
@@ -125,4 +159,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], GetTodayDto.prototype, "timezone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(-2),
+    (0, class_validator_1.Max)(2),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], GetTodayDto.prototype, "calendarAdjust", void 0);
 //# sourceMappingURL=calendar.dto.js.map

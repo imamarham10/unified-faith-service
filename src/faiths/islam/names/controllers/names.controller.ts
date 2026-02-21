@@ -32,15 +32,21 @@ export class NamesController {
     return this.namesService.getDailyName();
   }
 
-  // Muhammad Names endpoints
+  // Muhammad Names endpoints — static routes MUST come before /:id
   @Get('muhammad')
   async getAllMuhammadNames() {
     return this.namesService.getAllMuhammadNames();
   }
 
-  @Get('muhammad/:id')
-  async getMuhammadName(@Param('id') id: string) {
-    return this.namesService.getMuhammadName(parseInt(id));
+  @Get('muhammad/daily')
+  async getDailyMuhammadName() {
+    return this.namesService.getDailyMuhammadName();
+  }
+
+  @Get('muhammad/favorites/list')
+  @UseGuards(JwtAuthGuard)
+  async getUserMuhammadFavorites(@CurrentUser() user: any) {
+    return this.namesService.getUserMuhammadFavorites(user.userId);
   }
 
   @Post('muhammad/favorites')
@@ -52,14 +58,9 @@ export class NamesController {
     return this.namesService.addMuhammadFavorite(user.userId, favoriteDto.nameId);
   }
 
-  @Get('muhammad/favorites/list')
-  @UseGuards(JwtAuthGuard)
-  async getUserMuhammadFavorites(@CurrentUser() user: any) {
-    return this.namesService.getUserMuhammadFavorites(user.userId);
-  }
-
-  @Get('muhammad/daily')
-  async getDailyMuhammadName() {
-    return this.namesService.getDailyMuhammadName();
+  // Dynamic segment last — prevents matching static paths above
+  @Get('muhammad/:id')
+  async getMuhammadName(@Param('id') id: string) {
+    return this.namesService.getMuhammadName(parseInt(id));
   }
 }

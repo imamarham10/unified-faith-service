@@ -1,19 +1,13 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { DuasService } from '../services/duas.service';
+import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
+import { CurrentUser, CurrentUserData } from '../../../../auth-service/decorators/current-user.decorator';
 
 @Controller('api/v1/islam/duas')
 export class DuasController {
   constructor(private readonly duasService: DuasService) {}
 
-  @Get()
-  async getDuas(@Query() filters: any) {
-    return this.duasService.getDuas(filters);
-  }
-
-  @Get(':id')
-  async getDua(@Param('id') id: string) {
-    return this.duasService.getDua(id);
-  }
+  // Static routes MUST come before `:id` to avoid being swallowed by the dynamic segment
 
   @Get('categories')
   async getCategories() {
@@ -25,23 +19,39 @@ export class DuasController {
     return this.duasService.searchDuas(query);
   }
 
+  @Get('daily')
+  async getDailyDua() {
+    return this.duasService.getDailyDua();
+  }
+
+  @Post('favorites')
+  @UseGuards(JwtAuthGuard)
+  async addFavorite(
+    @CurrentUser() user: CurrentUserData,
+    @Body() body: { duaId: string },
+  ) {
+    return this.duasService.addFavorite(user.userId, body.duaId);
+  }
+
+  @Get('favorites')
+  @UseGuards(JwtAuthGuard)
+  async getFavorites(@CurrentUser() user: CurrentUserData) {
+    return this.duasService.getFavorites(user.userId);
+  }
+
   @Post('custom')
   async createCustomDua(@Body() createDuaDto: any) {
     return this.duasService.createCustomDua(createDuaDto);
   }
 
-  @Post('favorites')
-  async addFavorite(@Body() favoriteDto: any) {
-    return this.duasService.addFavorite(favoriteDto);
+  @Get()
+  async getDuas(@Query() filters: any) {
+    return this.duasService.getDuas(filters);
   }
 
-  @Get('favorites')
-  async getFavorites(@Query('userId') userId: string) {
-    return this.duasService.getFavorites(userId);
-  }
-
-  @Get('daily')
-  async getDailyDua() {
-    return this.duasService.getDailyDua();
+  // Dynamic segment last — prevents it from matching static paths above
+  @Get(':id')
+  async getDua(@Param('id') id: string) {
+    return this.duasService.getDua(id);
   }
 }

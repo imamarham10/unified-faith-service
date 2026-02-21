@@ -48,6 +48,9 @@ let QuranController = class QuranController {
     async getBookmarks(user) {
         return this.quranService.getBookmarks(user.userId);
     }
+    async deleteBookmark(user, id) {
+        return this.quranService.deleteBookmark(user.userId, id);
+    }
 };
 exports.QuranController = QuranController;
 __decorate([
@@ -100,6 +103,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], QuranController.prototype, "getBookmarks", null);
+__decorate([
+    (0, common_1.Delete)('bookmarks/:id'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], QuranController.prototype, "deleteBookmark", null);
 exports.QuranController = QuranController = __decorate([
     (0, common_1.Controller)('api/v1/islam/quran'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

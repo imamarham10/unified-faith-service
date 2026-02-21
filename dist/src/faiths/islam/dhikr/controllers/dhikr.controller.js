@@ -45,6 +45,9 @@ let DhikrController = class DhikrController {
     async getStats(user) {
         return this.dhikrService.getStats(user.userId);
     }
+    async getHistory(user) {
+        return this.dhikrService.getHistory(user.userId);
+    }
     async getAvailablePhrases() {
         return this.dictionaryService.getAllPhrases();
     }
@@ -105,6 +108,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], DhikrController.prototype, "getStats", null);
+__decorate([
+    (0, common_1.Get)('history'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DhikrController.prototype, "getHistory", null);
 __decorate([
     (0, common_1.Get)('phrases'),
     __metadata("design:type", Function),

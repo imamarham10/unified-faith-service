@@ -8,20 +8,8 @@ export declare class CalendarController {
     convertToGregorian(query: ConvertToGregorianDto): Promise<import("../services/calendar.service").HijriDateInfo>;
     getGregorianMonth(query: GetGregorianMonthDto): Promise<import("../services/calendar.service").CalendarMonth>;
     getHijriMonth(query: GetHijriMonthDto): Promise<import("../services/calendar.service").CalendarMonth>;
-    getAllEvents(): Promise<{
-        name: string;
-        id: string;
-        nameArabic: string | null;
-        description: string | null;
-        hijriMonth: number;
-        hijriDay: number;
-        importance: string;
-    }[]>;
-    getUpcomingEvents(query: GetUpcomingEventsDto): Promise<{
-        event: any;
-        gregorianDate: string;
-        daysUntil: number;
-    }[]>;
+    getAllEvents(): Promise<any>;
+    getUpcomingEvents(query: GetUpcomingEventsDto): Promise<any>;
     getHijriMonths(): Promise<{
         number: number;
         nameEnglish: string;

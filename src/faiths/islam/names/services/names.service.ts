@@ -1,16 +1,31 @@
 import { Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject } from '@nestjs/common';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
+
+const CACHE_TTL = {
+  DAY: 24 * 60 * 60 * 1000,
+  WEEK: 7 * 24 * 60 * 60 * 1000,
+};
 
 @Injectable()
 export class NamesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   async getAllNames() {
-    return (this.prisma as any).allahName.findMany({
-      orderBy: {
-        id: 'asc',
-      },
+    const cacheKey = 'names:allah';
+    const cached = await this.cacheManager.get<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await (this.prisma as any).allahName.findMany({
+      orderBy: { id: 'asc' },
     });
+    await this.cacheManager.set(cacheKey, result, CACHE_TTL.WEEK);
+    return result;
   }
 
   async getName(id: number) {
@@ -54,11 +69,15 @@ export class NamesService {
 
   // Muhammad Names methods
   async getAllMuhammadNames() {
-    return (this.prisma as any).muhammadName.findMany({
-      orderBy: {
-        id: 'asc',
-      },
+    const cacheKey = 'names:muhammad';
+    const cached = await this.cacheManager.get<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await (this.prisma as any).muhammadName.findMany({
+      orderBy: { id: 'asc' },
     });
+    await this.cacheManager.set(cacheKey, result, CACHE_TTL.WEEK);
+    return result;
   }
 
   async getMuhammadName(id: number) {

@@ -9,6 +9,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const cache_manager_1 = require("@nestjs/cache-manager");
+const redis_1 = require("@keyv/redis");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth-service/modules/auth.module");
@@ -23,6 +25,27 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 envFilePath: ['.env', 'src/auth-service/.env'],
+            }),
+            cache_manager_1.CacheModule.registerAsync({
+                isGlobal: true,
+                useFactory: async () => {
+                    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+                    const isTls = redisUrl.startsWith('rediss://');
+                    return {
+                        stores: [
+                            (0, redis_1.createKeyv)(isTls
+                                ? {
+                                    url: redisUrl,
+                                    socket: {
+                                        tls: true,
+                                        rejectUnauthorized: false,
+                                    },
+                                }
+                                : { url: redisUrl }),
+                        ],
+                        ttl: 3600 * 1000,
+                    };
+                },
             }),
             auth_module_1.AuthModule,
             users_module_1.UsersModule,

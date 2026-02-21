@@ -9,3 +9,4 @@ export declare function normalizeArabic(text: string): string;
 export declare function normalizeEnglish(text: string): string;
 export declare const DHIKR_BY_ARABIC: Map<string, DhikrPhrase>;
 export declare const DHIKR_BY_ENGLISH: Map<string, DhikrPhrase>;
+export declare const DHIKR_BY_TRANSLITERATION: Map<string, DhikrPhrase>;

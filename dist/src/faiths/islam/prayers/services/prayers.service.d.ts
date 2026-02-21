@@ -1,25 +1,12 @@
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
 export declare class PrayersService {
     private prisma;
     private prayerCalculations;
-    constructor(prisma: PrismaService, prayerCalculations: PrayerCalculationsService);
-    getPrayerTimes(lat: number, lng: number, dateStr?: string, method?: string): Promise<{
-        date: string;
-        location: {
-            lat: number;
-            lng: number;
-        };
-        method: string;
-        times: {
-            fajr: string;
-            sunrise: string;
-            dhuhr: string;
-            asr: string;
-            maghrib: string;
-            isha: string;
-        };
-    }>;
+    private cacheManager;
+    constructor(prisma: PrismaService, prayerCalculations: PrayerCalculationsService, cacheManager: Cache);
+    getPrayerTimes(lat: number, lng: number, dateStr?: string, method?: string): Promise<any>;
     getCurrentPrayer(lat: number, lng: number, method?: string): Promise<{
         current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
         next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
@@ -48,6 +35,15 @@ export declare class PrayersService {
         loggedAt: Date;
         status: string;
     }[]>;
+    deletePrayerLog(userId: string, logId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        date: Date;
+        prayerName: string;
+        loggedAt: Date;
+        status: string;
+    }>;
     getPrayerStats(userId: string): Promise<{
         userId: string;
         totalPrayers: number;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Query, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
 import { PrayersService } from '../services/prayers.service';
 import { GetPrayerTimesDto, LogPrayerDto } from '../dto/prayers.dto';
 import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
@@ -48,6 +48,14 @@ export class PrayersController {
     @Query('toDate') toDate?: string,
   ) {
     return this.prayersService.getPrayerLogs(user.userId, fromDate, toDate);
+  }
+
+  @Delete('log/:id')
+  async deletePrayerLog(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.prayersService.deletePrayerLog(user.userId, id);
   }
 
   @Get('stats')

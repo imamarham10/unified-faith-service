@@ -4,14 +4,7 @@ import { CurrentUserData } from '../../../../auth-service/decorators/current-use
 export declare class QuranController {
     private readonly quranService;
     constructor(quranService: QuranService);
-    getAllSurahs(): Promise<{
-        id: number;
-        nameArabic: string;
-        nameEnglish: string;
-        nameTransliteration: string;
-        revelationPlace: string;
-        verseCount: number;
-    }[]>;
+    getAllSurahs(): Promise<any[]>;
     getSurah(id: string, lang?: string): Promise<{
         verses: ({
             translations: {
@@ -98,4 +91,12 @@ export declare class QuranController {
         verseNumber: number;
         note: string | null;
     }[]>;
+    deleteBookmark(user: CurrentUserData, id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        surahId: number;
+        verseNumber: number;
+        note: string | null;
+    }>;
 }

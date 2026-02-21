@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Param, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Param, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
 import { QuranService } from '../services/quran.service';
 import { AddBookmarkDto, SearchVersesDto } from '../dto/quran.dto';
 import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
@@ -59,5 +59,14 @@ export class QuranController {
   @Get('bookmarks')
   async getBookmarks(@CurrentUser() user: CurrentUserData) {
     return this.quranService.getBookmarks(user.userId);
+  }
+
+  @Delete('bookmarks/:id')
+  @UseGuards(JwtAuthGuard)
+  async deleteBookmark(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.quranService.deleteBookmark(user.userId, id);
   }
 }

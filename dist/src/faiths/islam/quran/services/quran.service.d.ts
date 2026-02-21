@@ -1,15 +1,10 @@
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 export declare class QuranService {
     private prisma;
-    constructor(prisma: PrismaService);
-    getAllSurahs(): Promise<{
-        id: number;
-        nameArabic: string;
-        nameEnglish: string;
-        nameTransliteration: string;
-        revelationPlace: string;
-        verseCount: number;
-    }[]>;
+    private cacheManager;
+    constructor(prisma: PrismaService, cacheManager: Cache);
+    getAllSurahs(): Promise<any[]>;
     getSurah(surahId: number, language?: string): Promise<{
         verses: ({
             translations: {
@@ -100,4 +95,12 @@ export declare class QuranService {
         verseNumber: number;
         note: string | null;
     }[]>;
+    deleteBookmark(userId: string, bookmarkId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        surahId: number;
+        verseNumber: number;
+        note: string | null;
+    }>;
 }

@@ -71,6 +71,10 @@ export declare class DhikrController {
         endDate: Date;
     }>;
     getGoals(user: CurrentUserData): Promise<{
+        currentCount: number;
+        progressPercent: number;
+        daysRemaining: number;
+        isComplete: boolean;
         id: string;
         createdAt: Date;
         userId: string;
@@ -83,7 +87,12 @@ export declare class DhikrController {
         endDate: Date;
     }[]>;
     getStats(user: CurrentUserData): Promise<{
+        totalCount: number;
         totalDhikr: number;
+        currentStreak: number;
+        longestStreak: number;
+        dailyAverage: number;
+        mostRecitedPhrase: string;
         byPhrase: {
             phraseArabic: string;
             phraseEnglish: string;
@@ -100,5 +109,15 @@ export declare class DhikrController {
             count: number;
         }[];
     }>;
+    getHistory(user: CurrentUserData): Promise<{
+        id: string;
+        createdAt: Date;
+        userId: string;
+        date: Date;
+        phraseArabic: string;
+        phraseTranslit: string | null;
+        phraseEnglish: string;
+        count: number;
+    }[]>;
     getAvailablePhrases(): Promise<import("../constants/dhikr-phrases.constant").DhikrPhrase[]>;
 }

@@ -22,6 +22,10 @@ let DhikrDictionaryService = class DhikrDictionaryService {
         const normalized = (0, dhikr_phrases_constant_1.normalizeEnglish)(englishText);
         return dhikr_phrases_constant_1.DHIKR_BY_ENGLISH.get(normalized) || null;
     }
+    findByTransliteration(text) {
+        const normalized = (0, dhikr_phrases_constant_1.normalizeEnglish)(text);
+        return dhikr_phrases_constant_1.DHIKR_BY_TRANSLITERATION.get(normalized) || null;
+    }
     resolvePhrase(inputPhrase) {
         const language = this.detectLanguage(inputPhrase);
         let phrase;
@@ -33,10 +37,10 @@ let DhikrDictionaryService = class DhikrDictionaryService {
             }
         }
         else {
-            phrase = this.findByEnglish(inputPhrase);
+            phrase = this.findByEnglish(inputPhrase) ?? this.findByTransliteration(inputPhrase);
             if (!phrase) {
-                throw new common_1.BadRequestException(`English phrase "${inputPhrase}" not found in dictionary. ` +
-                    `Please provide a recognized dhikr phrase.`);
+                throw new common_1.BadRequestException(`Phrase "${inputPhrase}" not found in dictionary. ` +
+                    `Please provide a recognized dhikr phrase or transliteration (e.g. "SubhanAllah").`);
             }
         }
         return phrase;

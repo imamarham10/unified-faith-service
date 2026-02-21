@@ -148,3 +148,8 @@ export const DHIKR_BY_ARABIC = new Map<string, DhikrPhrase>(
 export const DHIKR_BY_ENGLISH = new Map<string, DhikrPhrase>(
   COMMON_DHIKR_PHRASES.map(phrase => [normalizeEnglish(phrase.english), phrase])
 );
+
+// Lookup by transliteration (e.g. "SubhanAllah", "La ilaha illallah")
+export const DHIKR_BY_TRANSLITERATION = new Map<string, DhikrPhrase>(
+  COMMON_DHIKR_PHRASES.map(phrase => [normalizeEnglish(phrase.transliteration), phrase])
+);

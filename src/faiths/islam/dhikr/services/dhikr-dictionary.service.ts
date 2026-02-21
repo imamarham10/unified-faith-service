@@ -4,6 +4,7 @@ import {
   COMMON_DHIKR_PHRASES,
   DHIKR_BY_ARABIC,
   DHIKR_BY_ENGLISH,
+  DHIKR_BY_TRANSLITERATION,
   normalizeArabic,
   normalizeEnglish,
 } from '../constants/dhikr-phrases.constant';
@@ -28,7 +29,7 @@ export class DhikrDictionaryService {
   }
 
   /**
-   * Find dhikr phrase by English text
+   * Find dhikr phrase by English meaning
    */
   findByEnglish(englishText: string): DhikrPhrase | null {
     const normalized = normalizeEnglish(englishText);
@@ -36,8 +37,16 @@ export class DhikrDictionaryService {
   }
 
   /**
-   * Resolve phrase to complete bilingual data
-   * Detects language and looks up phrase in appropriate map
+   * Find dhikr phrase by transliteration (e.g. "SubhanAllah", "La ilaha illallah")
+   */
+  findByTransliteration(text: string): DhikrPhrase | null {
+    const normalized = normalizeEnglish(text);
+    return DHIKR_BY_TRANSLITERATION.get(normalized) || null;
+  }
+
+  /**
+   * Resolve phrase to complete bilingual data.
+   * Accepts Arabic text, English meaning, or transliteration.
    */
   resolvePhrase(inputPhrase: string): DhikrPhrase {
     const language = this.detectLanguage(inputPhrase);
@@ -53,11 +62,12 @@ export class DhikrDictionaryService {
         );
       }
     } else {
-      phrase = this.findByEnglish(inputPhrase);
+      // Try English meaning first, then transliteration as fallback
+      phrase = this.findByEnglish(inputPhrase) ?? this.findByTransliteration(inputPhrase);
       if (!phrase) {
         throw new BadRequestException(
-          `English phrase "${inputPhrase}" not found in dictionary. ` +
-            `Please provide a recognized dhikr phrase.`
+          `Phrase "${inputPhrase}" not found in dictionary. ` +
+            `Please provide a recognized dhikr phrase or transliteration (e.g. "SubhanAllah").`
         );
       }
     }

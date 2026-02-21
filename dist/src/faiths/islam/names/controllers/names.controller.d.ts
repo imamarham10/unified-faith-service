@@ -8,8 +8,8 @@ export declare class NamesController {
     addFavorite(user: any, favoriteDto: CreateFavoriteDto): Promise<any>;
     getDailyName(): Promise<any>;
     getAllMuhammadNames(): Promise<any>;
-    getMuhammadName(id: string): Promise<any>;
-    addMuhammadFavorite(user: any, favoriteDto: CreateFavoriteDto): Promise<any>;
-    getUserMuhammadFavorites(user: any): Promise<any>;
     getDailyMuhammadName(): Promise<any>;
+    getUserMuhammadFavorites(user: any): Promise<any>;
+    addMuhammadFavorite(user: any, favoriteDto: CreateFavoriteDto): Promise<any>;
+    getMuhammadName(id: string): Promise<any>;
 }

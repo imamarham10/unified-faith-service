@@ -37,17 +37,17 @@ let NamesController = class NamesController {
     async getAllMuhammadNames() {
         return this.namesService.getAllMuhammadNames();
     }
-    async getMuhammadName(id) {
-        return this.namesService.getMuhammadName(parseInt(id));
-    }
-    async addMuhammadFavorite(user, favoriteDto) {
-        return this.namesService.addMuhammadFavorite(user.userId, favoriteDto.nameId);
+    async getDailyMuhammadName() {
+        return this.namesService.getDailyMuhammadName();
     }
     async getUserMuhammadFavorites(user) {
         return this.namesService.getUserMuhammadFavorites(user.userId);
     }
-    async getDailyMuhammadName() {
-        return this.namesService.getDailyMuhammadName();
+    async addMuhammadFavorite(user, favoriteDto) {
+        return this.namesService.addMuhammadFavorite(user.userId, favoriteDto.nameId);
+    }
+    async getMuhammadName(id) {
+        return this.namesService.getMuhammadName(parseInt(id));
     }
 };
 exports.NamesController = NamesController;
@@ -86,12 +86,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], NamesController.prototype, "getAllMuhammadNames", null);
 __decorate([
-    (0, common_1.Get)('muhammad/:id'),
-    __param(0, (0, common_1.Param)('id')),
+    (0, common_1.Get)('muhammad/daily'),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], NamesController.prototype, "getMuhammadName", null);
+], NamesController.prototype, "getDailyMuhammadName", null);
+__decorate([
+    (0, common_1.Get)('muhammad/favorites/list'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], NamesController.prototype, "getUserMuhammadFavorites", null);
 __decorate([
     (0, common_1.Post)('muhammad/favorites'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -102,19 +109,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], NamesController.prototype, "addMuhammadFavorite", null);
 __decorate([
-    (0, common_1.Get)('muhammad/favorites/list'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    (0, common_1.Get)('muhammad/:id'),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], NamesController.prototype, "getUserMuhammadFavorites", null);
-__decorate([
-    (0, common_1.Get)('muhammad/daily'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], NamesController.prototype, "getDailyMuhammadName", null);
+], NamesController.prototype, "getMuhammadName", null);
 exports.NamesController = NamesController = __decorate([
     (0, common_1.Controller)('api/v1/islam/names'),
     __metadata("design:paramtypes", [names_service_1.NamesService])

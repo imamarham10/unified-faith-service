@@ -52,6 +52,11 @@ export class DhikrController {
     return this.dhikrService.getStats(user.userId);
   }
 
+  @Get('history')
+  async getHistory(@CurrentUser() user: CurrentUserData) {
+    return this.dhikrService.getHistory(user.userId);
+  }
+
   @Get('phrases')
   async getAvailablePhrases() {
     return this.dictionaryService.getAllPhrases();

@@ -1,15 +1,29 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
+
+const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 
 @Injectable()
 export class PrayersService {
   constructor(
     private prisma: PrismaService,
     private prayerCalculations: PrayerCalculationsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async getPrayerTimes(lat: number, lng: number, dateStr?: string, method: string = 'mwl') {
+    // Round coordinates to 4 decimal places for cache key consistency
+    const latKey = lat.toFixed(4);
+    const lngKey = lng.toFixed(4);
+    const dateKey = dateStr || new Date().toISOString().split('T')[0];
+    const cacheKey = `prayers:${latKey}:${lngKey}:${dateKey}:${method}`;
+
+    const cached = await this.cacheManager.get<any>(cacheKey);
+    if (cached) return cached;
+
     const date = dateStr ? new Date(dateStr) : new Date();
     if (isNaN(date.getTime())) {
       throw new BadRequestException('Invalid date format');
@@ -17,7 +31,7 @@ export class PrayersService {
 
     const times = this.prayerCalculations.calculatePrayerTimes(lat, lng, date, method);
 
-    return {
+    const result = {
       date: date.toISOString().split('T')[0],
       location: { lat, lng },
       method,
@@ -30,6 +44,9 @@ export class PrayersService {
         isha: times.isha.toISOString(),
       },
     };
+
+    await this.cacheManager.set(cacheKey, result, PRAYER_CACHE_TTL);
+    return result;
   }
 
   async getCurrentPrayer(lat: number, lng: number, method: string = 'mwl') {
@@ -75,13 +92,32 @@ export class PrayersService {
     if (fromDate || toDate) {
       where.date = {};
       if (fromDate) where.date.gte = new Date(fromDate);
-      if (toDate) where.date.lte = new Date(toDate);
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
+      }
     }
 
     return this.prisma.prayerLog.findMany({
       where,
       orderBy: { date: 'desc' },
       take: 100
+    });
+  }
+
+  async deletePrayerLog(userId: string, logId: string) {
+    // Verify ownership before deleting
+    const log = await this.prisma.prayerLog.findFirst({
+      where: { id: logId, userId },
+    });
+
+    if (!log) {
+      throw new BadRequestException('Prayer log not found');
+    }
+
+    return this.prisma.prayerLog.delete({
+      where: { id: logId },
     });
   }
 

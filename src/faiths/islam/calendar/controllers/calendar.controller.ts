@@ -24,7 +24,7 @@ export class CalendarController {
   @Get('today')
   @UsePipes(new ValidationPipe({ transform: true }))
   async getToday(@Query() query: GetTodayDto) {
-    return this.calendarService.getToday(query.timezone);
+    return this.calendarService.getToday(query.timezone, query.calendarAdjust ?? 0);
   }
 
   /**
@@ -36,7 +36,7 @@ export class CalendarController {
   @UsePipes(new ValidationPipe({ transform: true }))
   async convertToHijri(@Query() query: ConvertToHijriDto) {
     const date = query.date ? new Date(query.date) : new Date();
-    return this.calendarService.gregorianToHijri(date, query.timezone);
+    return this.calendarService.gregorianToHijri(date, query.timezone, query.calendarAdjust ?? 0);
   }
 
   /**
@@ -66,7 +66,8 @@ export class CalendarController {
     return this.calendarService.getGregorianMonthCalendar(
       query.year,
       query.month,
-      query.timezone
+      query.timezone,
+      query.calendarAdjust ?? 0
     );
   }
 
@@ -102,7 +103,7 @@ export class CalendarController {
   @Get('events/upcoming')
   @UsePipes(new ValidationPipe({ transform: true }))
   async getUpcomingEvents(@Query() query: GetUpcomingEventsDto) {
-    return this.calendarService.getUpcomingEvents(query.days, query.timezone);
+    return this.calendarService.getUpcomingEvents(query.days, query.timezone, query.calendarAdjust ?? 0);
   }
 
   /**

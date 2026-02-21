@@ -1,3 +1,4 @@
+import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 export interface HijriDateInfo {
     hijriDay: number;
@@ -21,30 +22,24 @@ export interface CalendarMonth {
 }
 export declare class CalendarService {
     private prisma;
+    private cacheManager;
     private readonly hijriMonthNames;
     private readonly hijriMonthNamesArabic;
     private readonly dayNames;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, cacheManager: Cache);
+    private aladhanGToH;
     private getDateInTimezone;
-    gregorianToHijri(date: Date, timezone?: string): Promise<HijriDateInfo>;
+    private extractDateInTimezone;
+    gregorianToHijri(date: Date, timezone?: string, calendarAdjust?: number): Promise<HijriDateInfo>;
     hijriToGregorian(year: number, month: number, day: number, timezone?: string): Promise<HijriDateInfo>;
-    getGregorianMonthCalendar(year: number, month: number, timezone?: string): Promise<CalendarMonth>;
+    getGregorianMonthCalendar(year: number, month: number, timezone?: string, calendarAdjust?: number): Promise<CalendarMonth>;
     getHijriMonthCalendar(year: number, month: number, timezone?: string): Promise<CalendarMonth>;
-    getToday(timezone?: string): Promise<HijriDateInfo>;
-    getAllEvents(): Promise<{
-        name: string;
-        id: string;
-        nameArabic: string | null;
-        description: string | null;
-        hijriMonth: number;
-        hijriDay: number;
-        importance: string;
-    }[]>;
-    getUpcomingEvents(days?: number, timezone?: string): Promise<{
-        event: any;
-        gregorianDate: string;
-        daysUntil: number;
-    }[]>;
+    getToday(timezone?: string, calendarAdjust?: number): Promise<HijriDateInfo>;
+    getAllEvents(): Promise<any>;
+    private localGregorianToHijriNumbers;
+    private toJulianDay;
+    private julianDayToHijri;
+    getUpcomingEvents(days?: number, timezone?: string, calendarAdjust?: number): Promise<any>;
     private getEventsForHijriDate;
     private getHijriMonthLength;
     getHijriMonthNames(): {
