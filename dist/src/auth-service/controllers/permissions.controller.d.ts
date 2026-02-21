@@ -6,10 +6,10 @@ export declare class PermissionsController {
     constructor(permissionsService: PermissionsService);
     getAllPermissions(): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
@@ -18,10 +18,10 @@ export declare class PermissionsController {
         rolePermissions: ({
             role: {
                 name: string;
-                slug: string;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                slug: string;
                 description: string | null;
                 isSystemRole: boolean;
             };
@@ -34,30 +34,30 @@ export declare class PermissionsController {
         })[];
     } & {
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
     }>;
     createPermission(createPermissionDto: CreatePermissionDto): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
     }>;
     updatePermission(id: string, updatePermissionDto: UpdatePermissionDto): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;

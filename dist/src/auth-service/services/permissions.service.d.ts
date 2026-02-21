@@ -27,10 +27,10 @@ export declare class PermissionsService {
     getAllPermissions(): string[];
     getAllPermissionsFromDb(): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
@@ -39,10 +39,10 @@ export declare class PermissionsService {
         rolePermissions: ({
             role: {
                 name: string;
-                slug: string;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                slug: string;
                 description: string | null;
                 isSystemRole: boolean;
             };
@@ -55,10 +55,10 @@ export declare class PermissionsService {
         })[];
     } & {
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
@@ -71,10 +71,10 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
@@ -87,20 +87,20 @@ export declare class PermissionsService {
         description?: string;
     }): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;
     }>;
     deletePermission(id: string): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         resource: string;
         action: string;

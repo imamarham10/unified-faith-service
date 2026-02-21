@@ -8,16 +8,16 @@ export declare class QuranService {
     getSurah(surahId: number, language?: string): Promise<{
         verses: ({
             translations: {
+                text: string;
                 id: string;
                 language: string;
                 verseId: string;
                 authorName: string;
-                text: string;
             }[];
         } & {
             id: string;
-            surahId: number;
             verseNumber: number;
+            surahId: number;
             textArabic: string;
             textSimple: string;
         })[];
@@ -39,16 +39,16 @@ export declare class QuranService {
             verseCount: number;
         };
         translations: {
+            text: string;
             id: string;
             language: string;
             verseId: string;
             authorName: string;
-            text: string;
         }[];
     } & {
         id: string;
-        surahId: number;
         verseNumber: number;
+        surahId: number;
         textArabic: string;
         textSimple: string;
     }>;
@@ -62,16 +62,16 @@ export declare class QuranService {
             verseCount: number;
         };
         translations: {
+            text: string;
             id: string;
             language: string;
             verseId: string;
             authorName: string;
-            text: string;
         }[];
     } & {
         id: string;
-        surahId: number;
         verseNumber: number;
+        surahId: number;
         textArabic: string;
         textSimple: string;
     })[]>;
@@ -83,24 +83,24 @@ export declare class QuranService {
         id: string;
         createdAt: Date;
         userId: string;
-        surahId: number;
         verseNumber: number;
+        surahId: number;
         note: string | null;
     }>;
     getBookmarks(userId: string): Promise<{
         id: string;
         createdAt: Date;
         userId: string;
-        surahId: number;
         verseNumber: number;
+        surahId: number;
         note: string | null;
     }[]>;
     deleteBookmark(userId: string, bookmarkId: string): Promise<{
         id: string;
         createdAt: Date;
         userId: string;
-        surahId: number;
         verseNumber: number;
+        surahId: number;
         note: string | null;
     }>;
 }

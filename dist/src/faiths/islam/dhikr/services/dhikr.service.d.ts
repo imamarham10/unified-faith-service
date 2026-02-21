@@ -9,8 +9,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        isActive: boolean;
         userId: string;
+        isActive: boolean;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -26,8 +26,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        isActive: boolean;
         userId: string;
+        isActive: boolean;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -39,8 +39,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        isActive: boolean;
         userId: string;
+        isActive: boolean;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -52,8 +52,8 @@ export declare class DhikrService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        isActive: boolean;
         userId: string;
+        isActive: boolean;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;
@@ -106,10 +106,10 @@ export declare class DhikrService {
             count: number;
         }[];
         recentActivity: {
+            date: Date;
             id: string;
             createdAt: Date;
             userId: string;
-            date: Date;
             phraseArabic: string;
             phraseTranslit: string | null;
             phraseEnglish: string;
@@ -117,10 +117,10 @@ export declare class DhikrService {
         }[];
     }>;
     getHistory(userId: string, limit?: number): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         phraseArabic: string;
         phraseTranslit: string | null;
         phraseEnglish: string;

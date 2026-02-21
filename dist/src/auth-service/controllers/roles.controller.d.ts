@@ -7,10 +7,10 @@ export declare class RolesController {
     constructor(rolesService: RolesService);
     getAllRoles(): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         isSystemRole: boolean;
     }[]>;
@@ -18,10 +18,10 @@ export declare class RolesController {
         rolePermissions: ({
             permission: {
                 name: string;
-                slug: string;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                slug: string;
                 description: string | null;
                 resource: string;
                 action: string;
@@ -35,28 +35,28 @@ export declare class RolesController {
         })[];
     } & {
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         isSystemRole: boolean;
     }>;
     createRole(createRoleDto: CreateRoleDto): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         isSystemRole: boolean;
     }>;
     updateRole(id: string, updateRoleDto: UpdateRoleDto): Promise<{
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         isSystemRole: boolean;
     }>;
@@ -67,10 +67,10 @@ export declare class RolesController {
         rolePermissions: ({
             permission: {
                 name: string;
-                slug: string;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                slug: string;
                 description: string | null;
                 resource: string;
                 action: string;
@@ -84,10 +84,10 @@ export declare class RolesController {
         })[];
     } & {
         name: string;
-        slug: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         description: string | null;
         isSystemRole: boolean;
     }>;

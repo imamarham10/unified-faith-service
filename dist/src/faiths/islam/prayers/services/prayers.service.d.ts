@@ -8,8 +8,8 @@ export declare class PrayersService {
     constructor(prisma: PrismaService, prayerCalculations: PrayerCalculationsService, cacheManager: Cache);
     getPrayerTimes(lat: number, lng: number, dateStr?: string, method?: string): Promise<any>;
     getCurrentPrayer(lat: number, lng: number, method?: string): Promise<{
-        current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
-        next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
+        current: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
+        next: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
         date: string;
         remainingTime: string;
     }>;
@@ -18,28 +18,28 @@ export declare class PrayersService {
         date: string;
         status: string;
     }): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;
     }>;
     getPrayerLogs(userId: string, fromDate?: string, toDate?: string): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;
     }[]>;
     deletePrayerLog(userId: string, logId: string): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;

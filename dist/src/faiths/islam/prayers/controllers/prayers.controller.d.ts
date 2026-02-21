@@ -6,34 +6,34 @@ export declare class PrayersController {
     constructor(prayersService: PrayersService);
     getPrayerTimes(query: GetPrayerTimesDto): Promise<any>;
     getCurrentPrayer(lat: string, lng: string, method?: string): Promise<{
-        current: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
-        next: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha" | "none";
+        current: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
+        next: "none" | "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha";
         date: string;
         remainingTime: string;
     }>;
     logPrayer(user: CurrentUserData, body: LogPrayerDto): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;
     }>;
     getPrayerLogs(user: CurrentUserData, fromDate?: string, toDate?: string): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;
     }[]>;
     deletePrayerLog(user: CurrentUserData, id: string): Promise<{
+        date: Date;
         id: string;
         createdAt: Date;
         userId: string;
-        date: Date;
         prayerName: string;
         loggedAt: Date;
         status: string;
