@@ -5,15 +5,21 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as cookieParser from 'cookie-parser';
 import express from 'express';
 
 let cachedServer: express.Express;
 
-const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
-  'http://localhost:5173',
-  'https://siraatt.vercel.app',
-];
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,https://siraatt.vercel.app').split(',');
+
+function setCorsHeaders(req: any, res: any) {
+  const origin = req.headers?.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
 
 async function bootstrapServer(): Promise<express.Express> {
   if (!cachedServer) {
@@ -32,7 +38,6 @@ async function bootstrapServer(): Promise<express.Express> {
       }),
     );
 
-    app.use(cookieParser());
     app.enableCors({
       origin: allowedOrigins,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -46,6 +51,13 @@ async function bootstrapServer(): Promise<express.Express> {
 }
 
 export default async function handler(req: any, res: any) {
+  // Handle preflight OPTIONS immediately — no cold start wait
+  if (req.method === 'OPTIONS') {
+    setCorsHeaders(req, res);
+    return res.status(204).end();
+  }
+
   const server = await bootstrapServer();
+  setCorsHeaders(req, res);
   return server(req, res);
 }
