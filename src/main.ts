@@ -28,8 +28,12 @@ async function bootstrap() {
   app.use(cookieParser());
   app.enableShutdownHooks();
 
+  const defaultOrigins = [
+    'http://localhost:5173',
+    'https://siraatt.vercel.app',
+  ];
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173'],
+    origin: process.env.CORS_ORIGINS?.split(',') || defaultOrigins,
     credentials: true,
   });
 
