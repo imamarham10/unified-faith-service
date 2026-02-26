@@ -5,9 +5,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
+import * as cookieParser from 'cookie-parser';
 import express from 'express';
 
 let cachedServer: express.Express;
+
+const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+  'http://localhost:5173',
+  'https://siraatt.vercel.app',
+];
 
 async function bootstrapServer(): Promise<express.Express> {
   if (!cachedServer) {
@@ -26,7 +32,13 @@ async function bootstrapServer(): Promise<express.Express> {
       }),
     );
 
-    app.enableCors({ origin: '*' });
+    app.use(cookieParser());
+    app.enableCors({
+      origin: allowedOrigins,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true,
+    });
     await app.init();
     cachedServer = expressApp;
   }
