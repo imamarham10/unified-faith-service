@@ -30,7 +30,8 @@ async function bootstrap() {
 
   const defaultOrigins = [
     'http://localhost:5173',
-    'https://siraatt.vercel.app',
+    'https://www.siraat.website',
+    'https://siraat.website',
   ];
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') || defaultOrigins,
