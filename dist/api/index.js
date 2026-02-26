@@ -28,12 +28,6 @@ async function bootstrapServer() {
             forbidNonWhitelisted: false,
             transformOptions: { enableImplicitConversion: true },
         }));
-        app.enableCors({
-            origin: allowedOrigins,
-            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
-            credentials: true,
-        });
         await app.init();
         cachedServer = expressApp;
     }
