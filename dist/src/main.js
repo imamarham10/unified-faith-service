@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
+const cookieParser = require("cookie-parser");
 const app_module_1 = require("./app.module");
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
@@ -16,8 +17,12 @@ async function bootstrap() {
             enableImplicitConversion: true,
         },
     }));
+    app.use(cookieParser());
     app.enableShutdownHooks();
-    app.enableCors({ origin: '*' });
+    app.enableCors({
+        origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173'],
+        credentials: true,
+    });
     const port = process.env.PORT || 3000;
     await app.listen(port);
     console.log(`Application is running on: ${port}`);

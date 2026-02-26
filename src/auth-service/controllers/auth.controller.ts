@@ -5,7 +5,9 @@ import {
   UseGuards,
   Get,
   Req,
+  Res,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { RequestOtpDto } from '../dto/request-otp.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
@@ -28,13 +30,30 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+  async login(@Body() loginDto: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const deviceInfo = {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     };
 
-    return this.authService.login(loginDto, deviceInfo);
+    const result = await this.authService.login(loginDto, deviceInfo);
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+      path: '/',
+    });
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return result;
   }
 
   @Public()
@@ -45,30 +64,68 @@ export class AuthController {
 
   @Public()
   @Post('login/verify-otp')
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto, @Req() req: any) {
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const deviceInfo = {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     };
 
-    return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp, deviceInfo);
+    const result = await this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp, deviceInfo);
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+      path: '/',
+    });
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return result;
   }
 
   @Public()
   @Post('refresh')
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: any) {
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const deviceInfo = {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     };
 
-    return this.authService.refreshToken(refreshTokenDto.refresh_token, deviceInfo);
+    const token = refreshTokenDto.refresh_token || req.cookies?.refreshToken;
+    const result = await this.authService.refreshToken(token, deviceInfo);
+
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+      path: '/',
+    });
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  async logout(@CurrentUser() user: CurrentUserData, @Body() body?: { refresh_token?: string }) {
-    return this.authService.logout(user.userId, body?.refresh_token);
+  async logout(@CurrentUser() user: CurrentUserData, @Res({ passthrough: true }) res: Response, @Body() body?: { refresh_token?: string }) {
+    const result = await this.authService.logout(user.userId, body?.refresh_token);
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

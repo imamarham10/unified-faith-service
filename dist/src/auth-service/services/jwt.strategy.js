@@ -19,7 +19,10 @@ let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.Passp
     constructor(authService) {
         const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
         super({
-            jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: passport_jwt_1.ExtractJwt.fromExtractors([
+                passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
+                (req) => req?.cookies?.accessToken || null,
+            ]),
             ignoreExpiration: false,
             secretOrKey: secret,
         });

@@ -3,6 +3,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 // Load environment variables before anything else
@@ -24,9 +25,13 @@ async function bootstrap() {
     }),
   );
 
+  app.use(cookieParser());
   app.enableShutdownHooks();
-  
-  app.enableCors({ origin: '*' });
+
+  app.enableCors({
+    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173'],
+    credentials: true,
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
