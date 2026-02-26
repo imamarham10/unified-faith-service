@@ -8,16 +8,6 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const express_1 = require("express");
 let cachedServer;
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,https://siraatt.vercel.app').split(',');
-function setCorsHeaders(req, res) {
-    const origin = req.headers?.origin;
-    if (origin && allowedOrigins.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-}
 async function bootstrapServer() {
     if (!cachedServer) {
         const expressApp = (0, express_1.default)();
@@ -28,18 +18,14 @@ async function bootstrapServer() {
             forbidNonWhitelisted: false,
             transformOptions: { enableImplicitConversion: true },
         }));
+        app.enableCors({ origin: '*' });
         await app.init();
         cachedServer = expressApp;
     }
     return cachedServer;
 }
 async function handler(req, res) {
-    if (req.method === 'OPTIONS') {
-        setCorsHeaders(req, res);
-        return res.status(204).end();
-    }
     const server = await bootstrapServer();
-    setCorsHeaders(req, res);
     return server(req, res);
 }
 //# sourceMappingURL=index.js.map
