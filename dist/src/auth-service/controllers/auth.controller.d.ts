@@ -1,4 +1,3 @@
-import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { RequestOtpDto } from '../dto/request-otp.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
@@ -18,7 +17,7 @@ export declare class AuthController {
         isVerified: boolean;
         createdAt: Date;
     }>;
-    login(loginDto: LoginDto, req: any, res: Response): Promise<{
+    login(loginDto: LoginDto, req: any): Promise<{
         accessToken: string;
         refreshToken: string;
         user: {
@@ -32,7 +31,7 @@ export declare class AuthController {
         message: string;
         expiresIn: number;
     }>;
-    verifyOtp(verifyOtpDto: VerifyOtpDto, req: any, res: Response): Promise<{
+    verifyOtp(verifyOtpDto: VerifyOtpDto, req: any): Promise<{
         accessToken: string;
         refreshToken: string;
         user: {
@@ -42,12 +41,12 @@ export declare class AuthController {
         };
         expiresIn: number;
     }>;
-    refreshToken(refreshTokenDto: RefreshTokenDto, req: Request, res: Response): Promise<{
+    refreshToken(refreshTokenDto: RefreshTokenDto, req: any): Promise<{
         accessToken: string;
         refreshToken: string;
         expiresIn: number;
     }>;
-    logout(user: CurrentUserData, res: Response, body?: {
+    logout(user: CurrentUserData, body?: {
         refresh_token?: string;
     }): Promise<{
         message: string;

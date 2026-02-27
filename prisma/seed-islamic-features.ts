@@ -24,8 +24,11 @@ const prisma = new PrismaClient({ adapter });
 function fetchJson(url: string): Promise<any> {
     return new Promise((resolve, reject) => {
         https.get(url, (res) => {
+            // Use setEncoding to properly handle multi-byte UTF-8 characters
+            // that may span chunk boundaries (prevents U+FFFD corruption)
+            res.setEncoding('utf-8');
             let data = '';
-            res.on('data', (chunk) => (data += chunk));
+            res.on('data', (chunk: string) => (data += chunk));
             res.on('end', () => {
                 try {
                 resolve(JSON.parse(data));

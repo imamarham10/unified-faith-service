@@ -30,81 +30,33 @@ let AuthController = class AuthController {
     async register(registerDto) {
         return this.authService.register(registerDto);
     }
-    async login(loginDto, req, res) {
+    async login(loginDto, req) {
         const deviceInfo = {
             ip: req.ip,
             userAgent: req.get('user-agent'),
         };
-        const result = await this.authService.login(loginDto, deviceInfo);
-        res.cookie('accessToken', result.accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 15 * 60 * 1000,
-            path: '/',
-        });
-        res.cookie('refreshToken', result.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
-        });
-        return result;
+        return this.authService.login(loginDto, deviceInfo);
     }
     async requestOtp(requestOtpDto) {
         return this.authService.requestOtp(requestOtpDto.email);
     }
-    async verifyOtp(verifyOtpDto, req, res) {
+    async verifyOtp(verifyOtpDto, req) {
         const deviceInfo = {
             ip: req.ip,
             userAgent: req.get('user-agent'),
         };
-        const result = await this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp, deviceInfo);
-        res.cookie('accessToken', result.accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 15 * 60 * 1000,
-            path: '/',
-        });
-        res.cookie('refreshToken', result.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
-        });
-        return result;
+        return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp, deviceInfo);
     }
-    async refreshToken(refreshTokenDto, req, res) {
+    async refreshToken(refreshTokenDto, req) {
         const deviceInfo = {
             ip: req.ip,
             userAgent: req.get('user-agent'),
         };
-        const token = refreshTokenDto.refresh_token || req.cookies?.refreshToken;
-        const result = await this.authService.refreshToken(token, deviceInfo);
-        res.cookie('accessToken', result.accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 15 * 60 * 1000,
-            path: '/',
-        });
-        res.cookie('refreshToken', result.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
-        });
-        return result;
+        const token = refreshTokenDto.refresh_token;
+        return this.authService.refreshToken(token, deviceInfo);
     }
-    async logout(user, res, body) {
-        const result = await this.authService.logout(user.userId, body?.refresh_token);
-        res.clearCookie('accessToken', { path: '/' });
-        res.clearCookie('refreshToken', { path: '/' });
-        return result;
+    async logout(user, body) {
+        return this.authService.logout(user.userId, body?.refresh_token);
     }
     getProfile(user) {
         return user;
@@ -134,9 +86,8 @@ __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object, Object]),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
@@ -152,9 +103,8 @@ __decorate([
     (0, common_1.Post)('login/verify-otp'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [verify_otp_dto_1.VerifyOtpDto, Object, Object]),
+    __metadata("design:paramtypes", [verify_otp_dto_1.VerifyOtpDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "verifyOtp", null);
 __decorate([
@@ -162,19 +112,17 @@ __decorate([
     (0, common_1.Post)('refresh'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [refresh_token_dto_1.RefreshTokenDto, Object, Object]),
+    __metadata("design:paramtypes", [refresh_token_dto_1.RefreshTokenDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refreshToken", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('logout'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Res)({ passthrough: true })),
-    __param(2, (0, common_1.Body)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([
