@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { JwtPayload } from '../dto/jwt-payload.dto';
 
 @Injectable()

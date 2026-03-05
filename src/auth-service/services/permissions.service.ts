@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 
 export enum Permission {
   // User permissions

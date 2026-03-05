@@ -14,7 +14,6 @@ import { JwtStrategy } from '../services/jwt.strategy';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
-import { PrismaService } from '../repositories/prisma.service';
 import { EmailService } from '../providers/email/email.service';
 import { SmtpProvider } from '../providers/email/smtp.provider';
 import { SesProvider } from '../providers/email/ses.provider';
@@ -49,9 +48,6 @@ import { SesProvider } from '../providers/email/ses.provider';
     RolesService,
     PermissionsService,
     
-    // Database
-    PrismaService,
-    
     // Email Providers
     SmtpProvider,
     SesProvider,
@@ -72,7 +68,6 @@ import { SesProvider } from '../providers/email/ses.provider';
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
-    PrismaService,
   ],
 })
 export class AuthModule {}

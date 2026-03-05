@@ -4,8 +4,6 @@ import { PreferencesModule } from './preferences.module';
 import { AuthModule } from '../../auth-service/modules/auth.module';
 import { DeviceTokenController } from '../controllers/device-token.controller';
 import { DeviceTokenService } from '../services/device-token.service';
-import { PrismaService } from '../repositories/prisma.service';
-
 @Module({
   imports: [
     ProfileModule,
@@ -13,7 +11,7 @@ import { PrismaService } from '../repositories/prisma.service';
     AuthModule, // For JWT validation and guards
   ],
   controllers: [DeviceTokenController],
-  providers: [DeviceTokenService, PrismaService],
+  providers: [DeviceTokenService],
   exports: [DeviceTokenService],
 })
 export class UsersModule {}

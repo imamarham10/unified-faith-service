@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { seedQuranPremium } from './seed-quran-premium';
+import { seedQuranScripts } from './seed-quran-scripts';
 
 // Use the same adapter pattern as PrismaService
 const databaseUrl = process.env.DATABASE_URL;
@@ -202,6 +204,13 @@ async function main() {
   }
 
   console.log('✅ Permissions assigned to roles');
+
+  // Seed Quran premium data (reciters, premium translations, transliteration)
+  await seedQuranPremium(prisma);
+
+  // Seed Quran Arabic script variants (Uthmani)
+  await seedQuranScripts(prisma);
+
   console.log('🎉 Database seed completed!');
 }
 

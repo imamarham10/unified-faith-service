@@ -7,9 +7,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth-service/modules/auth.module';
 import { UsersModule } from './users-service/modules/users.module';
 import { FaithModule } from './faiths/faith.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PrismaModule } from './common/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', 'src/auth-service/.env'],
@@ -40,6 +43,7 @@ import { FaithModule } from './faiths/faith.module';
     AuthModule,
     UsersModule,
     FaithModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

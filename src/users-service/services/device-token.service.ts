@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { RegisterDeviceTokenDto } from '../dto/register-device-token.dto';
 
 export interface DeviceTokenResponse {

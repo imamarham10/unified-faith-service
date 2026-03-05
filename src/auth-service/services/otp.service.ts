@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { EmailService } from '../providers/email/email.service';
 
 @Injectable()

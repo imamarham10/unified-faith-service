@@ -11,7 +11,7 @@ import { config } from 'dotenv';
 config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   
   // Enable validation and transformation (snake_case to camelCase)
   app.useGlobalPipes(

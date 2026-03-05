@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, NotFoundException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { OtpService } from './otp.service';
 import { TokenService } from './token.service';
 import { RolesService } from './roles.service';

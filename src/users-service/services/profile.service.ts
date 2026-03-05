@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UserProfileResponseDto } from '../dto/user-profile-response.dto';
 

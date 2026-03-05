@@ -28,7 +28,8 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  userRoles UserRole[]
+  userRoles     UserRole[]
+  subscriptions Subscription[]
 
   @@index([email])
   @@index([phone])
@@ -306,11 +307,13 @@ model QuranVerse {
   id          String @id @default(uuid())
   surahId     Int    @map("surah_id")
   verseNumber Int    @map("verse_number")
-  textArabic  String @map("text_arabic") @db.Text
-  textSimple  String @map("text_simple") @db.Text
+  textArabic  String  @map("text_arabic") @db.Text
+  textSimple  String  @map("text_simple") @db.Text
+  textUthmani String? @map("text_uthmani") @db.Text
 
-  surah        QuranSurah          @relation(fields: [surahId], references: [id])
-  translations QuranTranslation[]
+  surah           QuranSurah            @relation(fields: [surahId], references: [id])
+  translations    QuranTranslation[]
+  transliteration QuranTransliteration?
 
   @@unique([surahId, verseNumber])
   @@index([surahId])
@@ -318,16 +321,43 @@ model QuranVerse {
 }
 
 model QuranTranslation {
-  id         String @id @default(uuid())
-  verseId    String @map("verse_id")
+  id         String  @id @default(uuid())
+  verseId    String  @map("verse_id")
   language   String
-  authorName String @map("author_name")
-  text       String @db.Text
+  authorName String  @map("author_name")
+  text       String  @db.Text
+  isPremium  Boolean @default(false) @map("is_premium")
 
   verse QuranVerse @relation(fields: [verseId], references: [id])
 
+  @@unique([verseId, authorName])
   @@index([verseId, language])
+  @@index([authorName])
   @@map("quran_translations")
+}
+
+model QuranTransliteration {
+  id      String @id @default(uuid())
+  verseId String @unique @map("verse_id")
+  text    String @db.Text
+
+  verse QuranVerse @relation(fields: [verseId], references: [id])
+
+  @@map("quran_transliterations")
+}
+
+model QuranReciter {
+  id           String  @id @default(uuid())
+  name         String  @unique
+  slug         String  @unique
+  nameArabic   String? @map("name_arabic")
+  style        String?
+  audioBaseUrl String  @map("audio_base_url")
+  isPremium    Boolean @default(true) @map("is_premium")
+  sortOrder    Int     @default(0) @map("sort_order")
+
+  @@index([isPremium])
+  @@map("quran_reciters")
 }
 
 model UserQuranBookmark {
@@ -588,4 +618,28 @@ model EmotionRemedy {
 
   @@index([emotionId])
   @@map("emotion_remedies")
+}
+
+// ============================================
+// Subscriptions / Payments
+// ============================================
+
+model Subscription {
+  id                     String    @id @default(uuid())
+  userId                 String    @map("user_id")
+  razorpaySubscriptionId String    @unique @map("razorpay_subscription_id")
+  razorpayPlanId         String    @map("razorpay_plan_id")
+  plan                   String    // 'monthly' | 'yearly'
+  status                 String    @default("created") // created | authenticated | active | pending | halted | cancelled | completed
+  currentPeriodStart     DateTime? @map("current_period_start")
+  currentPeriodEnd       DateTime? @map("current_period_end")
+  cancelledAt            DateTime? @map("cancelled_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
 }

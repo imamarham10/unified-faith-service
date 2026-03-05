@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../repositories/prisma.service';
+import { PrismaService } from '../../common/utils/prisma.service';
 import { UpdatePreferencesDto } from '../dto/update-preferences.dto';
 import { UserPreferencesResponseDto } from '../dto/user-preferences-response.dto';
 
