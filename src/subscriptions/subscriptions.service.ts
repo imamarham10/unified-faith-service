@@ -14,12 +14,28 @@ export class SubscriptionsService {
   ) {}
 
   async createSubscription(userId: string, plan: string) {
-    // Check if user already has an active subscription
-    const existing = await this.prisma.subscription.findFirst({
-      where: { userId, status: { in: ['created', 'authenticated', 'active'] } },
+    // Block only if user has a truly active/authenticated subscription
+    const activeExisting = await this.prisma.subscription.findFirst({
+      where: { userId, status: { in: ['authenticated', 'active'] } },
     });
-    if (existing) {
+    if (activeExisting) {
       throw new BadRequestException('You already have an active subscription');
+    }
+
+    // Cancel any stale 'created' subscriptions (user opened checkout but never paid)
+    const staleSubscriptions = await this.prisma.subscription.findMany({
+      where: { userId, status: 'created' },
+    });
+    for (const stale of staleSubscriptions) {
+      try {
+        await this.razorpayService.cancelSubscription(stale.razorpaySubscriptionId);
+      } catch {
+        // Razorpay may have already expired it — ignore
+      }
+      await this.prisma.subscription.update({
+        where: { id: stale.id },
+        data: { status: 'cancelled', cancelledAt: new Date() },
+      });
     }
 
     const planId = plan === 'yearly'
