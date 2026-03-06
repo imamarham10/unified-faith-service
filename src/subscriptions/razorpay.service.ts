@@ -16,10 +16,13 @@ export class RazorpayService {
     });
   }
 
-  async createSubscription(planId: string, userId: string) {
+  async createSubscription(planId: string, userId: string, plan: string) {
+    // Razorpay caps total_count at 100 for yearly plans
+    const totalCount = plan === 'yearly' ? 10 : 120;
+
     return this.razorpay.subscriptions.create({
       plan_id: planId,
-      total_count: 120, // Max billing cycles
+      total_count: totalCount,
       quantity: 1,
       customer_notify: 1,
       notes: { userId },

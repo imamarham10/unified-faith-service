@@ -106,13 +106,19 @@ export class CalendarService {
       const json = await res.json() as any;
       if (json.code !== 200) return null;
 
-      const h = json.data.hijri;
-      const result = {
-        day: parseInt(h.day),
-        month: h.month.number,
-        year: parseInt(h.year),
-        monthName: h.month.en,
-      };
+      const h = json.data?.hijri;
+      if (!h) return null;
+
+      const day = parseInt(h.day);
+      const month = typeof h.month?.number === 'number' ? h.month.number : parseInt(h.month?.number);
+      const year = parseInt(h.year);
+
+      // Validate parsed values — fall back to local converter if malformed
+      if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
+        return null;
+      }
+
+      const result = { day, month, year, monthName: h.month?.en || '' };
 
       // Cache for 24 hours (Hijri date for a Gregorian date never changes)
       await this.cacheManager.set(cacheKey, result, CACHE_TTL.DAY);
@@ -429,6 +435,12 @@ export class CalendarService {
    * Get events for a specific Hijri date
    */
   private async getEventsForHijriDate(month: number, day: number) {
+    // Guard: if month or day are invalid (undefined/NaN), Prisma would ignore the
+    // filter and return ALL events. Return empty instead.
+    if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || day < 1) {
+      return [];
+    }
+
     return this.prisma.islamicEvent.findMany({
       where: {
         hijriMonth: month,

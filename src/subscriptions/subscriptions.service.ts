@@ -46,7 +46,7 @@ export class SubscriptionsService {
       throw new BadRequestException('Subscription plan not configured');
     }
 
-    const razorpaySub = await this.razorpayService.createSubscription(planId, userId);
+    const razorpaySub = await this.razorpayService.createSubscription(planId, userId, plan);
 
     const subscription = await this.prisma.subscription.create({
       data: {
