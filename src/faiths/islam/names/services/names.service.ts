@@ -42,14 +42,13 @@ export class NamesService {
 
   async addFavorite(userId: string, nameId: number) {
     // Check if name exists
-    const name = await this.getName(nameId);
+    await this.getName(nameId);
 
-    // Create favorite
-    return (this.prisma as any).userFavoriteAllahName.create({
-      data: {
-        userId,
-        nameId,
-      },
+    // Upsert to avoid unique constraint errors on re-add
+    return (this.prisma as any).userFavoriteAllahName.upsert({
+      where: { userId_nameId: { userId, nameId } },
+      create: { userId, nameId },
+      update: {},
     });
   }
 
@@ -96,12 +95,11 @@ export class NamesService {
     // Check if name exists
     await this.getMuhammadName(nameId);
 
-    // Create favorite
-    return (this.prisma as any).userFavoriteMuhammadName.create({
-      data: {
-        userId,
-        nameId,
-      },
+    // Upsert to avoid unique constraint errors on re-add
+    return (this.prisma as any).userFavoriteMuhammadName.upsert({
+      where: { userId_nameId: { userId, nameId } },
+      create: { userId, nameId },
+      update: {},
     });
   }
 
@@ -132,6 +130,34 @@ export class NamesService {
     return (this.prisma as any).muhammadName.findMany({
       where: { id: { in: nameIds } },
       orderBy: { id: 'asc' },
+    });
+  }
+
+  async getUserAllahFavorites(userId: string) {
+    const favorites = await (this.prisma as any).userFavoriteAllahName.findMany({
+      where: { userId },
+    });
+
+    const nameIds = favorites.map((f: any) => f.nameId);
+    if (nameIds.length === 0) {
+      return [];
+    }
+
+    return (this.prisma as any).allahName.findMany({
+      where: { id: { in: nameIds } },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async removeAllahFavorite(userId: string, nameId: number) {
+    return (this.prisma as any).userFavoriteAllahName.deleteMany({
+      where: { userId, nameId },
+    });
+  }
+
+  async removeMuhammadFavorite(userId: string, nameId: number) {
+    return (this.prisma as any).userFavoriteMuhammadName.deleteMany({
+      where: { userId, nameId },
     });
   }
 }

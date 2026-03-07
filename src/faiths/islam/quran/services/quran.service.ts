@@ -170,13 +170,29 @@ export class QuranService {
   }
 
   async getBookmarks(userId: string) {
-    return this.prisma.userQuranBookmark.findMany({
+    const bookmarks = await this.prisma.userQuranBookmark.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      // We might want to include verse text here?
-      // Since there is no relation defined in schema between Bookmark and QuranVerse (it uses surahId/verseNumber integers),
-      // we can't using `include`. We'd have to fetch manually or just return metadata.
-      // For now returning metadata is fine.
+    });
+
+    if (bookmarks.length === 0) return [];
+
+    // Enrich with surah names
+    const surahIds = [...new Set(bookmarks.map((b) => b.surahId))];
+    const surahs = await this.prisma.quranSurah.findMany({
+      where: { id: { in: surahIds } },
+      select: { id: true, nameEnglish: true, nameArabic: true, nameTransliteration: true },
+    });
+    const surahMap = new Map(surahs.map((s) => [s.id, s]));
+
+    return bookmarks.map((b) => {
+      const surah = surahMap.get(b.surahId);
+      return {
+        ...b,
+        surahName: surah?.nameEnglish ?? null,
+        surahNameArabic: surah?.nameArabic ?? null,
+        surahNameTransliteration: surah?.nameTransliteration ?? null,
+      };
     });
   }
 

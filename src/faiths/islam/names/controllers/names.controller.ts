@@ -27,6 +27,21 @@ export class NamesController {
     return this.namesService.addFavorite(user.userId, favoriteDto.nameId);
   }
 
+  @Get('favorites/list')
+  @UseGuards(JwtAuthGuard)
+  async getUserAllahFavorites(@CurrentUser() user: any) {
+    return this.namesService.getUserAllahFavorites(user.userId);
+  }
+
+  @Post('favorites/remove')
+  @UseGuards(JwtAuthGuard)
+  async removeAllahFavorite(
+    @CurrentUser() user: any,
+    @Body(ValidationPipe) favoriteDto: CreateFavoriteDto,
+  ) {
+    return this.namesService.removeAllahFavorite(user.userId, favoriteDto.nameId);
+  }
+
   @Get('daily')
   async getDailyName() {
     return this.namesService.getDailyName();
@@ -56,6 +71,15 @@ export class NamesController {
     @Body(ValidationPipe) favoriteDto: CreateFavoriteDto,
   ) {
     return this.namesService.addMuhammadFavorite(user.userId, favoriteDto.nameId);
+  }
+
+  @Post('muhammad/favorites/remove')
+  @UseGuards(JwtAuthGuard)
+  async removeMuhammadFavorite(
+    @CurrentUser() user: any,
+    @Body(ValidationPipe) favoriteDto: CreateFavoriteDto,
+  ) {
+    return this.namesService.removeMuhammadFavorite(user.userId, favoriteDto.nameId);
   }
 
   // Dynamic segment last — prevents matching static paths above
