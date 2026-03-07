@@ -519,6 +519,59 @@ model UserFavoriteDua {
 }
 
 // ============================================
+// Islamic Features - Hadith Collections
+// ============================================
+
+model HadithBook {
+  id           String  @id @default(uuid())
+  name         String  @unique
+  nameArabic   String  @map("name_arabic")
+  author       String
+  authorArabic String  @map("author_arabic")
+  totalHadiths Int     @map("total_hadiths")
+  isPremium    Boolean @default(true) @map("is_premium")
+  description  String? @db.Text
+  sortOrder    Int     @default(0) @map("sort_order")
+
+  hadiths Hadith[]
+
+  @@index([isPremium])
+  @@map("hadith_books")
+}
+
+model Hadith {
+  id                  String  @id @default(uuid())
+  bookId              String  @map("book_id")
+  hadithNumber        Int     @map("hadith_number")
+  chapterTitle        String? @map("chapter_title")
+  chapterTitleArabic  String? @map("chapter_title_arabic")
+  textArabic          String  @map("text_arabic") @db.Text
+  textEnglish         String  @map("text_english") @db.Text
+  narratorChain       String? @map("narrator_chain") @db.Text
+  narratorChainArabic String? @map("narrator_chain_arabic") @db.Text
+  grade               String?
+  reference           String?
+
+  book HadithBook @relation(fields: [bookId], references: [id])
+
+  @@unique([bookId, hadithNumber])
+  @@index([bookId])
+  @@index([grade])
+  @@map("hadiths")
+}
+
+model UserFavoriteHadith {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  hadithId  String   @map("hadith_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, hadithId])
+  @@index([userId])
+  @@map("user_favorite_hadiths")
+}
+
+// ============================================
 // Islamic Features - Names of Allah
 // ============================================
 

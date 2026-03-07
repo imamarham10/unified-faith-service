@@ -7,6 +7,7 @@ import { DuasModule } from './duas/duas.module';
 import { NamesModule } from './names/names.module';
 import { QiblaModule } from './qibla/qibla.module';
 import { FeelingsModule } from './feelings/feelings.module';
+import { HadithsModule } from './hadiths/hadiths.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FeelingsModule } from './feelings/feelings.module';
     NamesModule,
     QiblaModule,
     FeelingsModule,
+    HadithsModule,
   ],
   exports: [
     PrayersModule,
@@ -28,6 +30,7 @@ import { FeelingsModule } from './feelings/feelings.module';
     NamesModule,
     QiblaModule,
     FeelingsModule,
+    HadithsModule,
   ],
 })
 export class IslamModule {}

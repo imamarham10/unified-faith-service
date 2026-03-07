@@ -19,7 +19,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "migrate:users": "ts-node scripts/migrate-users-tables.ts"
+    "migrate:users": "ts-node scripts/migrate-users-tables.ts",
+    "prisma:seed:hadiths": "npx ts-node prisma/seed-hadiths.ts"
   },
   "repository": {
     "type": "git",
