@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { getDailyPanchang } from 'panchang-ts';
 import {
   PanchangResponseDto,
   TithiInfo,
@@ -6,8 +7,8 @@ import {
   YogaInfo,
   KaranaInfo,
   VaaraInfo,
-  TimeBand,
   AuspiciousTimes,
+  FestivalSummary,
 } from '../dto/panchang-response.dto';
 import {
   TITHI_NAMES,
@@ -18,10 +19,12 @@ import {
 } from '../data/sanskrit-names';
 
 /**
- * PanchangService computes Hindu calendar elements for a given date and location.
- * Real calculation lands in Bundle H. This is the skeleton — returns a STUB response.
+ * PanchangService computes Hindu calendar elements for a given date and location
+ * using the panchang-ts library (MIT, pure JS — no swisseph). Sanskrit/Devanagari
+ * names are sourced from local lookup tables since the library returns
+ * transliterated English names only.
  *
- * Library: panchang-ts (MIT). See ../data/library-notes.md.
+ * Festival enrichment is deferred to Bundle J (FestivalRuleService).
  */
 @Injectable()
 export class PanchangService {
@@ -33,65 +36,113 @@ export class PanchangService {
     lng: number,
     timezone: string,
   ): Promise<PanchangResponseDto> {
-    this.logger.debug(`getPanchang(${date.toISOString()}, ${lat}, ${lng}, ${timezone})`);
+    const result = getDailyPanchang(
+      date,
+      { latitude: lat, longitude: lng },
+      { timezone },
+    );
 
-    // STUB — Bundle H replaces this with real panchang-ts integration.
-    const vaaraIdx = date.getDay();
-    const tithiIdx = 0;
-    const nakshatraIdx = 0;
-    const yogaIdx = 0;
-    const karanaIdx = 0;
+    if (!result) {
+      throw new InternalServerErrorException(
+        `Panchang unavailable for ${date.toISOString().slice(0, 10)} at (${lat}, ${lng}) — polar-edge or no-sunrise day.`,
+      );
+    }
 
+    // Pick the anga value active at sunrise (canonical convention for "the day's
+    // tithi/nakshatra"). If no entry has isActiveAtSunrise, fall back to the first.
+    const activeTithi =
+      result.tithis.find((t) => t.isActiveAtSunrise) ?? result.tithis[0];
+    const activeNakshatra =
+      result.nakshatras.find((n) => n.isActiveAtSunrise) ?? result.nakshatras[0];
+    const activeYoga =
+      result.yogas.find((y) => y.isActiveAtSunrise) ?? result.yogas[0];
+    // Karanas don't always carry isActiveAtSunrise; first entry is the day's headline karana.
+    const activeKarana =
+      result.karanas.find((k) => k.isActiveAtSunrise) ?? result.karanas[0];
+
+    // panchang-ts tithi.index is 0-29 (Shukla 1..15 = 0..14, Krishna 1..15 = 15..29).
+    // Our TITHI_NAMES is also 0-29 in the same order.
+    const tithiIdx = activeTithi.index;
     const tithi: TithiInfo = {
       number: tithiIdx + 1,
       name: TITHI_NAMES[tithiIdx].name,
       nameSanskrit: TITHI_NAMES[tithiIdx].sanskrit,
       paksha: tithiIdx < 15 ? 'shukla' : 'krishna',
+      endTime: activeTithi.endTime ? activeTithi.endTime.toISOString() : undefined,
     };
 
+    const nakshatraIdx = activeNakshatra.index;
     const nakshatra: NakshatraInfo = {
       number: nakshatraIdx + 1,
       name: NAKSHATRA_NAMES[nakshatraIdx].name,
       nameSanskrit: NAKSHATRA_NAMES[nakshatraIdx].sanskrit,
       deity: NAKSHATRA_NAMES[nakshatraIdx].deity,
+      endTime: activeNakshatra.endTime
+        ? activeNakshatra.endTime.toISOString()
+        : undefined,
     };
 
+    const yogaIdx = activeYoga.index;
     const yoga: YogaInfo = {
       number: yogaIdx + 1,
       name: YOGA_NAMES[yogaIdx].name,
       nameSanskrit: YOGA_NAMES[yogaIdx].sanskrit,
     };
 
+    // Karana: panchang-ts emits a running index 0–59 across the lunar cycle
+    // (60 karanas per month). KARANA_NAMES is the 11-name canonical cycle, so
+    // we map by name. Library names: Bava, Balava, Kaulava, Taitila, Gara(ja),
+    // Vanija, Vishti, Shakuni, Chatushpada, Naga, Kimstughna. We tolerate the
+    // Gara/Garaja spelling difference.
+    const libKaranaName = activeKarana.name;
+    const karanaCycleIdx = KARANA_NAMES.findIndex(
+      (k) =>
+        k.name.toLowerCase() === libKaranaName.toLowerCase() ||
+        // Library uses "Gara"; our table uses "Garaja"
+        (libKaranaName === 'Gara' && k.name === 'Garaja'),
+    );
+    const safeKaranaIdx = karanaCycleIdx >= 0 ? karanaCycleIdx : 0;
     const karana: KaranaInfo = {
-      number: karanaIdx + 1,
-      name: KARANA_NAMES[karanaIdx].name,
-      nameSanskrit: KARANA_NAMES[karanaIdx].sanskrit,
-      isAuspicious: KARANA_NAMES[karanaIdx].isAuspicious,
+      number: safeKaranaIdx + 1,
+      name: KARANA_NAMES[safeKaranaIdx].name,
+      nameSanskrit: KARANA_NAMES[safeKaranaIdx].sanskrit,
+      isAuspicious: KARANA_NAMES[safeKaranaIdx].isAuspicious,
     };
 
+    const vaaraIdx = result.vara.index;
     const vaara: VaaraInfo = {
       number: vaaraIdx,
       name: VAARA_NAMES[vaaraIdx].name,
       nameSanskrit: VAARA_NAMES[vaaraIdx].sanskrit,
     };
 
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const stubBand = (start: number, end: number): TimeBand => {
-      const s = new Date(dayStart);
-      s.setHours(start);
-      const e = new Date(dayStart);
-      e.setHours(end);
-      return { start: s.toISOString(), end: e.toISOString() };
+    const auspicious: AuspiciousTimes = {
+      brahmaMuhurta: {
+        start: result.brahmaMuhurta.start.toISOString(),
+        end: result.brahmaMuhurta.end.toISOString(),
+      },
+      abhijitMuhurta: result.abhijitMuhurta
+        ? {
+            start: result.abhijitMuhurta.start.toISOString(),
+            end: result.abhijitMuhurta.end.toISOString(),
+          }
+        : null,
+      rahuKaal: {
+        start: result.rahuKalam.start.toISOString(),
+        end: result.rahuKalam.end.toISOString(),
+      },
+      yamagandam: {
+        start: result.yamaganda.start.toISOString(),
+        end: result.yamaganda.end.toISOString(),
+      },
+      gulika: {
+        start: result.gulikaKalam.start.toISOString(),
+        end: result.gulikaKalam.end.toISOString(),
+      },
     };
 
-    const auspicious: AuspiciousTimes = {
-      brahmaMuhurta: stubBand(4, 5),
-      abhijitMuhurta: stubBand(11, 13),
-      rahuKaal: stubBand(15, 16),
-      yamagandam: stubBand(13, 15),
-      gulika: stubBand(7, 9),
-    };
+    // Festivals: stub for now — Bundle J wires in FestivalRuleService.
+    const festivals: FestivalSummary[] = [];
 
     const isoDate = date.toISOString().slice(0, 10);
 
@@ -103,10 +154,12 @@ export class PanchangService {
       yoga,
       karana,
       vaara,
-      sunrise: stubBand(6, 7).start,
-      sunset: stubBand(18, 19).start,
+      sunrise: result.sunrise.toISOString(),
+      sunset: result.sunset.toISOString(),
+      moonrise: result.moonrise ? result.moonrise.toISOString() : undefined,
+      moonset: result.moonset ? result.moonset.toISOString() : undefined,
       auspicious,
-      festivals: [],
+      festivals,
     };
   }
 }

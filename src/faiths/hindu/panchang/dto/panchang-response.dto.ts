@@ -40,7 +40,8 @@ export class TimeBand {
 
 export class AuspiciousTimes {
   brahmaMuhurta: TimeBand;
-  abhijitMuhurta: TimeBand;
+  /** `null` on Wednesdays — Abhijit is omitted on Buddha-vara per Smarta convention. */
+  abhijitMuhurta: TimeBand | null;
   rahuKaal: TimeBand;
   yamagandam: TimeBand;
   gulika: TimeBand;
