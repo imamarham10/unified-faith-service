@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, Matches, IsOptional, IsIn } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -27,4 +27,9 @@ export class RegisterDto {
     message: 'Phone number must be a valid international format (e.g., +1234567890)',
   })
   phone: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['hindu', 'muslim', 'christian', 'jain', 'sikh', 'buddhist'])
+  faith?: string;
 }

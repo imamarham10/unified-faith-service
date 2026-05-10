@@ -94,6 +94,27 @@ export class AuthService {
       });
     }
 
+    // Create initial user preferences with chosen faith (if provided)
+    await this.prisma.userPreference.create({
+      data: {
+        userId: user.id,
+        faith: registerDto.faith ?? null,
+        language: 'en',
+        notificationPreferences: {
+          push: true,
+          email: true,
+          sms: false,
+          dailyPacket: true,
+          aiGuru: true,
+        },
+        contentPreferences: {
+          showAds: true,
+          audioQuality: 'standard',
+          downloadQuality: 'standard',
+        },
+      },
+    });
+
     // Return user data (without password hash)
     return {
       id: user.id,
