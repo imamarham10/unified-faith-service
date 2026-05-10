@@ -6,13 +6,20 @@ import {
   ParseFloatPipe,
   ParseIntPipe,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PanchangService } from '../services/panchang.service';
+import { FestivalRuleService } from '../services/festival-rule.service';
+import { PrismaService } from '../../../../common/utils/prisma.service';
 import { Public } from '../../../../auth-service/decorators/public.decorator';
 
 @Controller('api/v1/hindu/panchang')
 export class PanchangController {
-  constructor(private readonly panchangService: PanchangService) {}
+  constructor(
+    private readonly panchangService: PanchangService,
+    private readonly festivalRuleService: FestivalRuleService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Public()
   @Get('today')
@@ -93,6 +100,53 @@ export class PanchangController {
     }
     const full = await this.panchangService.getPanchang(date, lat, lng, timezone);
     return { date: full.date, timezone: full.timezone, auspicious: full.auspicious };
+  }
+
+  // -------- Festival endpoints (Bundle J) --------
+  // NOTE: declare `festivals/upcoming` BEFORE `festivals/:slug` so Nest's
+  // route matcher doesn't shadow `upcoming` as a slug parameter.
+
+  @Public()
+  @Get('festivals')
+  async listAllFestivals() {
+    return this.prisma.hinduFestival.findMany({ orderBy: { slug: 'asc' } });
+  }
+
+  @Public()
+  @Get('festivals/upcoming')
+  async upcomingFestivals(
+    @Query('lat', ParseFloatPipe) lat: number,
+    @Query('lng', ParseFloatPipe) lng: number,
+    @Query('days') daysStr = '90',
+    @Query('timezone') timezone = 'UTC',
+  ) {
+    this.validateCoords(lat, lng);
+    const days = Math.min(Math.max(parseInt(daysStr, 10) || 90, 1), 365);
+    const fromDate = new Date();
+    const occurrences = await this.festivalRuleService.findUpcoming(
+      fromDate,
+      days,
+      lat,
+      lng,
+      timezone,
+    );
+    return {
+      fromDate: fromDate.toISOString().slice(0, 10),
+      days,
+      occurrences,
+    };
+  }
+
+  @Public()
+  @Get('festivals/:slug')
+  async getFestival(@Param('slug') slug: string) {
+    const festival = await this.prisma.hinduFestival.findUnique({
+      where: { slug },
+    });
+    if (!festival) {
+      throw new NotFoundException(`Festival '${slug}' not found`);
+    }
+    return festival;
   }
 
   private validateCoords(lat: number, lng: number) {
