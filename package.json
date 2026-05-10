@@ -20,7 +20,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "migrate:users": "ts-node scripts/migrate-users-tables.ts",
-    "prisma:seed:hadiths": "npx ts-node prisma/seed-hadiths.ts"
+    "prisma:seed:hadiths": "npx ts-node prisma/seed-hadiths.ts",
+    "prisma:seed:hindu-festivals": "npx ts-node prisma/seed-hindu-festivals.ts"
   },
   "repository": {
     "type": "git",
