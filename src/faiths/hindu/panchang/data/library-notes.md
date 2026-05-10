@@ -39,6 +39,26 @@ Top-level response keys (verified):
 - `choghadiya`, `gowriPanchangam`, `hora`, `doGhatiMuhurta` — `{ day: TimeBand[], night: TimeBand[] }`
 - `chandramasa`, `chandraRashi`, `suryaNakshatra`, `masa`, `samvat`,
   `ayanamsa`, `siderealSunAtSunrise`, `siderealMoonAtSunrise`
+  - **`masa`** is the **SOLAR** masa (`{ index: 0..11, name: 'Mesha'..'Meena' }`).
+    Useful for Sankranti detection but NOT for tithi-based festivals.
+  - **`chandramasa`** is the **LUNAR** masa (the one we want for tithi-based
+    festival rules). Shape:
+    ```ts
+    {
+      index: number;          // 0..11 in active system
+      name: string;           // active-system month name
+      isAdhika: boolean;      // intercalary (skip these for festival match)
+      system: 'purnimanta' | 'amanta';
+      amantaIndex: number;
+      amantaName: string;     // e.g. 'Vaishakha'
+      purnimantaIndex: number;
+      purnimantaName: string; // e.g. 'Jyeshtha'
+    }
+    ```
+    Bundle J's `FestivalRuleService` pins to `chandramasa.purnimantaName`
+    because (a) panchang-ts's default `masaSystem` is purnimanta and
+    (b) the v1 festival seed authors rules in purnimanta convention
+    (e.g. Holi = Chaitra Krishna 1; Janmashtami = Bhadrapada Krishna 8).
 - `panchaka`, `panchakaRahita`, `bhadra`, `varjyam`, `gandaMula`,
   `anandadiYoga`, `specialYogas`
 - `vijayaMuhurta`, `godhuliMuhurta`, `nishitaMuhurta`, `amritKala`,
