@@ -17,9 +17,23 @@ export class CreateCounterDto {
 }
 
 export class UpdateCounterDto {
+  // Delta. When present alone, treated as "increment by N".
   @IsOptional()
   @IsNumber()
   count?: number;
+
+  // Absolute set. Used for reset (setCount: 0) or manual overrides.
+  @IsOptional()
+  @IsNumber()
+  setCount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  targetCount?: number;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
 }
 
 export class CreateGoalDto {

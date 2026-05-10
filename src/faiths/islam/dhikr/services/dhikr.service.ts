@@ -17,19 +17,52 @@ export class DhikrService {
   }
 
   async createCounter(userId: string, data: { name: string; phrase: string; targetCount?: number }) {
-    // Resolve phrase using dictionary service
-    const resolvedPhrase = this.dictionaryService.resolvePhrase(data.phrase);
+    // Try to resolve against the dictionary so we can populate the bilingual
+    // fields with canonical text. For custom phrases the user invented (e.g.
+    // "Morning adhkar"), the dictionary throws — fall back to storing what
+    // the user typed in the language-appropriate slot. Both phraseArabic and
+    // phraseEnglish are NOT NULL in the schema, so we mirror as needed.
+    let phraseArabic: string;
+    let phraseTranslit: string | undefined;
+    let phraseEnglish: string;
+    try {
+      const resolved = this.dictionaryService.resolvePhrase(data.phrase);
+      phraseArabic = resolved.arabic;
+      phraseTranslit = resolved.transliteration;
+      phraseEnglish = resolved.english;
+    } catch {
+      const language = this.dictionaryService.detectLanguage(data.phrase);
+      if (language === 'arabic') {
+        phraseArabic = data.phrase;
+        phraseEnglish = data.name;
+      } else {
+        phraseArabic = data.name;
+        phraseEnglish = data.phrase;
+        phraseTranslit = data.phrase;
+      }
+    }
 
     return this.prisma.dhikrCounter.create({
       data: {
         userId,
         name: data.name,
-        phraseArabic: resolvedPhrase.arabic,
-        phraseTranslit: resolvedPhrase.transliteration,
-        phraseEnglish: resolvedPhrase.english,
+        phraseArabic,
+        phraseTranslit,
+        phraseEnglish,
         targetCount: data.targetCount,
       },
     });
+  }
+
+  async updateCounterFields(
+    id: string,
+    fields: { setCount?: number; targetCount?: number; name?: string },
+  ) {
+    const data: { count?: number; targetCount?: number; name?: string } = {};
+    if (fields.setCount !== undefined) data.count = fields.setCount;
+    if (fields.targetCount !== undefined) data.targetCount = fields.targetCount;
+    if (fields.name !== undefined) data.name = fields.name;
+    return this.prisma.dhikrCounter.update({ where: { id }, data });
   }
 
   async incrementCounter(id: string, count: number = 1) {

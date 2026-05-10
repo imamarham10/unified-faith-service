@@ -26,9 +26,17 @@ export class DhikrController {
 
   @Patch('counters/:id')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async incrementCounter(@Param('id') id: string, @Body() body: UpdateCounterDto) {
-    // If count is provided in body, use it, otherwise default to 1
-    return this.dhikrService.incrementCounter(id, body.count || 1);
+  async patchCounter(@Param('id') id: string, @Body() body: UpdateCounterDto) {
+    // Absolute updates take precedence so reset/goal/rename aren't shadowed
+    // by an accidental count value.
+    if (body.setCount !== undefined || body.targetCount !== undefined || body.name !== undefined) {
+      return this.dhikrService.updateCounterFields(id, {
+        setCount: body.setCount,
+        targetCount: body.targetCount,
+        name: body.name,
+      });
+    }
+    return this.dhikrService.incrementCounter(id, body.count ?? 1);
   }
 
   @Delete('counters/:id')
