@@ -31,6 +31,17 @@ model User {
   userRoles     UserRole[]
   subscriptions Subscription[]
 
+  // Hindu module back-relations
+  hinduScriptureBookmarks    HinduScriptureBookmark[]
+  hinduFavoriteDeityNames    UserFavoriteDeityName[]
+  hinduFavoriteStotras       UserFavoriteStotra[]
+  hinduFavoriteTemples       UserFavoriteTemple[]
+  hinduFavoriteStories       UserFavoriteHinduStory[]
+  japaCounters               JapaCounter[]
+  japaGoals                  JapaGoal[]
+  japaHistory                JapaHistory[]
+  pujaLogs                   PujaLog[]
+
   @@index([email])
   @@index([phone])
   @@index([isActive, deletedAt])
@@ -695,4 +706,415 @@ model Subscription {
   @@index([userId])
   @@index([status])
   @@map("subscriptions")
+}
+
+// ============================================================================
+// HINDU MODULE
+// ============================================================================
+// All Hindu tables prefixed `hindu_` to keep them grep-able alongside Islam.
+// Single migration `add_hindu_module` introduces this entire block.
+// ============================================================================
+
+// ----- Deities & Names -----
+
+model Deity {
+  id            String        @id @default(uuid())
+  slug          String        @unique
+  nameEnglish   String        @map("name_english")
+  nameSanskrit  String        @map("name_sanskrit")
+  family        String?       // 'vaishnava' | 'shaiva' | 'shakta' | 'smarta' | 'pan'
+  color         String?       // hex color for UI badge
+  traditions    String[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  names         DeityName[]
+
+  @@map("hindu_deities")
+}
+
+model DeityName {
+  id              String                  @id @default(uuid())
+  deityId         String                  @map("deity_id")
+  sequence        Int
+  sanskritName    String                  @map("sanskrit_name")
+  transliteration String
+  hindiName       String?                 @map("hindi_name")
+  englishMeaning  String                  @map("english_meaning")
+  description     String?
+  createdAt       DateTime                @default(now()) @map("created_at")
+  deity           Deity                   @relation(fields: [deityId], references: [id], onDelete: Cascade)
+  favorites       UserFavoriteDeityName[]
+
+  @@index([deityId, sequence])
+  @@map("hindu_deity_names")
+}
+
+model UserFavoriteDeityName {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  deityNameId  String     @map("deity_name_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deityName    DeityName  @relation(fields: [deityNameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deityNameId])
+  @@map("hindu_user_favorite_deity_names")
+}
+
+// ----- Scriptures (Bhagavad Gita, Sahasranama, Chalisa, Upanishads) -----
+
+model HinduText {
+  id              String                   @id @default(uuid())
+  slug            String                   @unique
+  nameEnglish     String                   @map("name_english")
+  nameSanskrit    String                   @map("name_sanskrit")
+  type            String                   // 'gita' | 'sahasranama' | 'chalisa' | 'upanishad' | 'purana'
+  totalVerses     Int                      @map("total_verses")
+  isPremium       Boolean                  @default(false) @map("is_premium")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  chapters        HinduTextChapter[]
+  verses          HinduTextVerse[]
+  audios          HinduTextAudio[]
+
+  @@map("hindu_texts")
+}
+
+model HinduTextChapter {
+  id            String           @id @default(uuid())
+  textId        String           @map("text_id")
+  chapterNumber Int              @map("chapter_number")
+  nameSanskrit  String?          @map("name_sanskrit")
+  nameEnglish   String?          @map("name_english")
+  text          HinduText        @relation(fields: [textId], references: [id], onDelete: Cascade)
+  verses        HinduTextVerse[]
+  audios        HinduTextAudio[]
+
+  @@unique([textId, chapterNumber])
+  @@map("hindu_text_chapters")
+}
+
+model HinduTextVerse {
+  id              String                   @id @default(uuid())
+  textId          String                   @map("text_id")
+  chapterId       String?                  @map("chapter_id")
+  verseNumber     Int                      @map("verse_number")
+  sanskritText    String                   @map("sanskrit_text")
+  transliteration String?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  text            HinduText                @relation(fields: [textId], references: [id], onDelete: Cascade)
+  chapter         HinduTextChapter?        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  translations    HinduTextTranslation[]
+  bookmarks       HinduScriptureBookmark[]
+  emotionRemedies HinduEmotionRemedy[]
+
+  @@index([textId, chapterId, verseNumber])
+  @@map("hindu_text_verses")
+}
+
+model HinduTextTranslation {
+  id            String          @id @default(uuid())
+  verseId       String          @map("verse_id")
+  languageCode  String          @map("language_code")  // 'en' | 'hi' | 'sa' | 'ta' | 'bn'
+  authorName    String          @map("author_name")
+  text          String
+  isPremium     Boolean         @default(false) @map("is_premium")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  verse         HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+
+  @@unique([verseId, languageCode, authorName])
+  @@map("hindu_text_translations")
+}
+
+model HinduTextAudio {
+  id            String             @id @default(uuid())
+  textId        String             @map("text_id")
+  chapterId     String?            @map("chapter_id")
+  reciterSlug   String             @map("reciter_slug")
+  url           String
+  isPremium     Boolean            @default(false) @map("is_premium")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  text          HinduText          @relation(fields: [textId], references: [id], onDelete: Cascade)
+  chapter       HinduTextChapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@map("hindu_text_audio")
+}
+
+model HinduScriptureBookmark {
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  verseId     String          @map("verse_id")
+  note        String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verse       HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, verseId])
+  @@map("hindu_scripture_bookmarks")
+}
+
+// ----- Japa (mantra counter) -----
+
+model JapaCounter {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  name           String
+  mantraSanskrit String?    @map("mantra_sanskrit")
+  mantraEnglish  String?    @map("mantra_english")
+  count          Int        @default(0)
+  targetCount    Int?       @map("target_count")
+  deityKey       String?    @map("deity_key")
+  isActive       Boolean    @default(true) @map("is_active")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("hindu_japa_counters")
+}
+
+model JapaGoal {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  mantraSanskrit String     @map("mantra_sanskrit")
+  targetCount    Int        @map("target_count")
+  period         String     // 'daily' | 'weekly' | 'monthly'
+  startDate      DateTime   @map("start_date")
+  endDate        DateTime   @map("end_date")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("hindu_japa_goals")
+}
+
+model JapaHistory {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  mantra    String
+  count     Int
+  date      DateTime
+  createdAt DateTime   @default(now()) @map("created_at")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("hindu_japa_history")
+}
+
+// ----- Panchang (festivals + puja log) -----
+
+model HinduFestival {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  nameEnglish   String   @map("name_english")
+  nameSanskrit  String?  @map("name_sanskrit")
+  nameHindi     String?  @map("name_hindi")
+  ruleSpec      Json     @map("rule_spec")
+  deityKey      String?  @map("deity_key")
+  regions       String[]
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("hindu_festivals")
+}
+
+model PujaLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  sandhya   String   // 'pratah' | 'madhyahna' | 'sayam'
+  date      DateTime
+  status    String   // 'on_time' | 'late' | 'missed'
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("hindu_puja_logs")
+}
+
+// ----- Stotras / Aartis / Bhajans -----
+
+model StotraCategory {
+  id        String    @id @default(uuid())
+  slug      String    @unique
+  name      String
+  deityKey  String?   @map("deity_key")
+  createdAt DateTime  @default(now()) @map("created_at")
+  stotras   Stotra[]
+
+  @@map("hindu_stotra_categories")
+}
+
+model Stotra {
+  id              String                @id @default(uuid())
+  categoryId      String                @map("category_id")
+  slug            String                @unique
+  titleSanskrit   String                @map("title_sanskrit")
+  titleEnglish    String                @map("title_english")
+  type            String                // 'stotra' | 'aarti' | 'bhajan'
+  deityKey        String?               @map("deity_key")
+  isPremium       Boolean               @default(false) @map("is_premium")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  category        StotraCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  verses          StotraVerse[]
+  audios          StotraAudio[]
+  favorites       UserFavoriteStotra[]
+
+  @@map("hindu_stotras")
+}
+
+model StotraVerse {
+  id              String              @id @default(uuid())
+  stotraId        String              @map("stotra_id")
+  verseNumber     Int                 @map("verse_number")
+  sanskritText    String              @map("sanskrit_text")
+  transliteration String?
+  stotra          Stotra              @relation(fields: [stotraId], references: [id], onDelete: Cascade)
+  translations    StotraTranslation[]
+
+  @@unique([stotraId, verseNumber])
+  @@map("hindu_stotra_verses")
+}
+
+model StotraTranslation {
+  id            String       @id @default(uuid())
+  verseId       String       @map("verse_id")
+  languageCode  String       @map("language_code")
+  text          String
+  verse         StotraVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+
+  @@unique([verseId, languageCode])
+  @@map("hindu_stotra_translations")
+}
+
+model StotraAudio {
+  id          String   @id @default(uuid())
+  stotraId    String   @map("stotra_id")
+  reciterSlug String   @map("reciter_slug")
+  url         String
+  stotra      Stotra   @relation(fields: [stotraId], references: [id], onDelete: Cascade)
+
+  @@map("hindu_stotra_audio")
+}
+
+model UserFavoriteStotra {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  stotraId  String   @map("stotra_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stotra    Stotra   @relation(fields: [stotraId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stotraId])
+  @@map("hindu_user_favorite_stotras")
+}
+
+// ----- Temple locator -----
+
+model Temple {
+  id            String                @id @default(uuid())
+  name          String
+  deityKey      String?               @map("deity_key")
+  lat           Float
+  lng           Float
+  address       String
+  city          String?
+  country       String
+  photos        String[]
+  googlePlaceId String?               @map("google_place_id")
+  source        String                // 'curated' | 'google'
+  createdAt     DateTime              @default(now()) @map("created_at")
+  favorites     UserFavoriteTemple[]
+
+  @@index([lat, lng])
+  @@map("hindu_temples")
+}
+
+model UserFavoriteTemple {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  templeId  String   @map("temple_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  temple    Temple   @relation(fields: [templeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, templeId])
+  @@map("hindu_user_favorite_temples")
+}
+
+// ----- Feelings (mood → Gita verse) -----
+
+model HinduEmotion {
+  id          String                 @id @default(uuid())
+  slug        String                 @unique
+  nameEnglish String                 @map("name_english")
+  nameHindi   String?                @map("name_hindi")
+  icon        String?
+  createdAt   DateTime               @default(now()) @map("created_at")
+  remedies    HinduEmotionRemedy[]
+
+  @@map("hindu_emotions")
+}
+
+model HinduEmotionRemedy {
+  id        String          @id @default(uuid())
+  emotionId String          @map("emotion_id")
+  verseId   String          @map("verse_id")
+  note      String?
+  sequence  Int             @default(0)
+  emotion   HinduEmotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  verse     HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+
+  @@unique([emotionId, verseId])
+  @@index([emotionId, sequence])
+  @@map("hindu_emotion_remedies")
+}
+
+// ----- Sacred Stories -----
+
+model HinduStoryCollection {
+  id          String          @id @default(uuid())
+  slug        String          @unique
+  name        String
+  sourceText  String          @map("source_text") // 'bhagavata_purana' | 'ramayana' | 'saint_lives' | 'panchatantra'
+  isPremium   Boolean         @default(false) @map("is_premium")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  stories     HinduStory[]
+
+  @@map("hindu_story_collections")
+}
+
+model HinduStory {
+  id            String                    @id @default(uuid())
+  collectionId  String                    @map("collection_id")
+  storyNumber   Int?                      @map("story_number")
+  title         String
+  summary       String
+  body          String
+  deityKey      String?                   @map("deity_key")
+  characters    String[]
+  createdAt     DateTime                  @default(now()) @map("created_at")
+  collection    HinduStoryCollection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  translations  HinduStoryTranslation[]
+  favorites     UserFavoriteHinduStory[]
+
+  @@map("hindu_stories")
+}
+
+model HinduStoryTranslation {
+  id            String      @id @default(uuid())
+  storyId       String      @map("story_id")
+  languageCode  String      @map("language_code")
+  body          String
+  story         HinduStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, languageCode])
+  @@map("hindu_story_translations")
+}
+
+model UserFavoriteHinduStory {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  storyId   String      @map("story_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     HinduStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+  @@map("hindu_user_favorite_stories")
 }
