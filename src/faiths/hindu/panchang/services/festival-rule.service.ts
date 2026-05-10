@@ -111,6 +111,11 @@ export class FestivalRuleService {
       return false;
     }
 
+    // Skip adhika (intercalary) months — by tradition, festivals are observed
+    // in the regular nija masa, not in the leap month. panchang-ts exposes
+    // this on `chandramasa.isAdhika`.
+    if (panchang?.chandramasa?.isAdhika === true) return false;
+
     const panchangMonth = this.extractHinduMonth(panchang);
     if (!panchangMonth) {
       this.logger.warn(

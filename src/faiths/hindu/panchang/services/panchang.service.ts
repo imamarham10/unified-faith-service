@@ -17,6 +17,7 @@ import {
   KARANA_NAMES,
   VAARA_NAMES,
 } from '../data/sanskrit-names';
+import { FestivalRuleService } from './festival-rule.service';
 
 /**
  * PanchangService computes Hindu calendar elements for a given date and location
@@ -29,6 +30,8 @@ import {
 @Injectable()
 export class PanchangService {
   private readonly logger = new Logger(PanchangService.name);
+
+  constructor(private readonly festivalRuleService: FestivalRuleService) {}
 
   async getPanchang(
     date: Date,
@@ -141,8 +144,18 @@ export class PanchangService {
       },
     };
 
-    // Festivals: stub for now — Bundle J wires in FestivalRuleService.
-    const festivals: FestivalSummary[] = [];
+    // Festivals: resolve via FestivalRuleService (Bundle J).
+    const festivalRows = await this.festivalRuleService.findFestivalsForDate(
+      date,
+      lat,
+      lng,
+      timezone,
+    );
+    const festivals: FestivalSummary[] = festivalRows.map((f) => ({
+      slug: f.slug,
+      nameEnglish: f.nameEnglish,
+      nameSanskrit: f.nameSanskrit ?? undefined,
+    }));
 
     const isoDate = date.toISOString().slice(0, 10);
 
