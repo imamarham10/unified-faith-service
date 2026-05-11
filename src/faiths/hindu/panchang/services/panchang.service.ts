@@ -94,15 +94,11 @@ export class PanchangService {
 
     // Karana: panchang-ts emits a running index 0–59 across the lunar cycle
     // (60 karanas per month). KARANA_NAMES is the 11-name canonical cycle, so
-    // we map by name. Library names: Bava, Balava, Kaulava, Taitila, Gara(ja),
-    // Vanija, Vishti, Shakuni, Chatushpada, Naga, Kimstughna. We tolerate the
-    // Gara/Garaja spelling difference.
+    // we map by name. Library names: Bava, Balava, Kaulava, Taitila, Gara,
+    // Vanija, Vishti, Shakuni, Chatushpada, Naga, Kimstughna.
     const libKaranaName = activeKarana.name;
     const karanaCycleIdx = KARANA_NAMES.findIndex(
-      (k) =>
-        k.name.toLowerCase() === libKaranaName.toLowerCase() ||
-        // Library uses "Gara"; our table uses "Garaja"
-        (libKaranaName === 'Gara' && k.name === 'Garaja'),
+      (k) => k.name.toLowerCase() === libKaranaName.toLowerCase(),
     );
     const safeKaranaIdx = karanaCycleIdx >= 0 ? karanaCycleIdx : 0;
     const karana: KaranaInfo = {

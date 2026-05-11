@@ -3,8 +3,8 @@ import { SunPositionService } from '../../panchang/services/sun-position.service
 import { PujaTimesResponseDto, SandhyaInfo, TimeBand } from '../dto/puja-times-response.dto';
 
 const SANDHYA_INFO = {
-  pratah: { sanskrit: 'पातः सन्ध्या', english: 'Pratah Sandhya' },
-  madhyahna: { sanskrit: 'माध्यान्ह सन्ध्या', english: 'Madhyahna Sandhya' },
+  pratah: { sanskrit: 'प्रातः सन्ध्या', english: 'Pratah Sandhya' },
+  madhyahna: { sanskrit: 'माध्याह्न सन्ध्या', english: 'Madhyahna Sandhya' },
   sayam: { sanskrit: 'सायं सन्ध्या', english: 'Sayam Sandhya' },
 } as const;
 

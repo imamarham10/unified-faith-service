@@ -42,8 +42,8 @@ export const NAKSHATRA_NAMES: { name: string; sanskrit: string; deity: string }[
   { name: 'Pushya', sanskrit: 'पुष्य', deity: 'Brihaspati' },
   { name: 'Ashlesha', sanskrit: 'आश्लेषा', deity: 'Sarpa (Nagas)' },
   { name: 'Magha', sanskrit: 'मघा', deity: 'Pitrs' },
-  { name: 'Purva Phalguni', sanskrit: 'पूर्व फाल्गुनी', deity: 'Bhaga' },
-  { name: 'Uttara Phalguni', sanskrit: 'उत्तर फाल्गुनी', deity: 'Aryaman' },
+  { name: 'Purva Phalguni', sanskrit: 'पूर्वा फाल्गुनी', deity: 'Bhaga' },
+  { name: 'Uttara Phalguni', sanskrit: 'उत्तरा फाल्गुनी', deity: 'Aryaman' },
   { name: 'Hasta', sanskrit: 'हस्त', deity: 'Savitr' },
   { name: 'Chitra', sanskrit: 'चित्रा', deity: 'Vishvakarma' },
   { name: 'Swati', sanskrit: 'स्वाति', deity: 'Vayu' },
@@ -56,8 +56,8 @@ export const NAKSHATRA_NAMES: { name: string; sanskrit: string; deity: string }[
   { name: 'Shravana', sanskrit: 'श्रवण', deity: 'Vishnu' },
   { name: 'Dhanishta', sanskrit: 'धनिष्ठा', deity: 'Vasus' },
   { name: 'Shatabhisha', sanskrit: 'शतभिषा', deity: 'Varuna' },
-  { name: 'Purva Bhadrapada', sanskrit: 'पूर्व भाद्रपद', deity: 'Aja Ekapada' },
-  { name: 'Uttara Bhadrapada', sanskrit: 'उत्तर भाद्रपद', deity: 'Ahir Budhnya' },
+  { name: 'Purva Bhadrapada', sanskrit: 'पूर्वा भाद्रपदा', deity: 'Aja Ekapada' },
+  { name: 'Uttara Bhadrapada', sanskrit: 'उत्तरा भाद्रपदा', deity: 'Ahir Budhnya' },
   { name: 'Revati', sanskrit: 'रेवती', deity: 'Pushan' },
 ];
 
@@ -96,7 +96,7 @@ export const KARANA_NAMES: { name: string; sanskrit: string; isAuspicious: boole
   { name: 'Balava', sanskrit: 'बालव', isAuspicious: true },
   { name: 'Kaulava', sanskrit: 'कौलव', isAuspicious: true },
   { name: 'Taitila', sanskrit: 'तैतिल', isAuspicious: true },
-  { name: 'Garaja', sanskrit: 'गरज', isAuspicious: true },
+  { name: 'Gara', sanskrit: 'गर', isAuspicious: true },
   { name: 'Vanija', sanskrit: 'वणिज', isAuspicious: true },
   { name: 'Vishti', sanskrit: 'विष्टि (भद्रा)', isAuspicious: false },
   { name: 'Shakuni', sanskrit: 'शकुनि', isAuspicious: false },
@@ -105,12 +105,15 @@ export const KARANA_NAMES: { name: string; sanskrit: string; isAuspicious: boole
   { name: 'Kimstughna', sanskrit: 'किंस्तुघ्न', isAuspicious: true },
 ];
 
+// Vaara: the Panchang-anga "day of week". Sanskrit form uses the planet
+// name + वार suffix (e.g., रविवार = Sunday). Standalone planet names
+// (रवि, सोम) without वार read as the planet itself, not the weekday.
 export const VAARA_NAMES: { name: string; sanskrit: string }[] = [
-  { name: 'Sunday', sanskrit: 'रवि' },
-  { name: 'Monday', sanskrit: 'सोम' },
-  { name: 'Tuesday', sanskrit: 'मङ्गल' },
-  { name: 'Wednesday', sanskrit: 'बुध' },
-  { name: 'Thursday', sanskrit: 'गुरु' },
-  { name: 'Friday', sanskrit: 'शुक्र' },
-  { name: 'Saturday', sanskrit: 'शनि' },
+  { name: 'Sunday', sanskrit: 'रविवार' },
+  { name: 'Monday', sanskrit: 'सोमवार' },
+  { name: 'Tuesday', sanskrit: 'मङ्गलवार' },
+  { name: 'Wednesday', sanskrit: 'बुधवार' },
+  { name: 'Thursday', sanskrit: 'गुरुवार' },
+  { name: 'Friday', sanskrit: 'शुक्रवार' },
+  { name: 'Saturday', sanskrit: 'शनिवार' },
 ];
