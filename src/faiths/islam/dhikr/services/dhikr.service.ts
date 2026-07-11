@@ -9,14 +9,34 @@ export class DhikrService {
     private dictionaryService: DhikrDictionaryService,
   ) {}
 
+  // Additive response aliases for the mobile client's field names. Web reads
+  // phraseTranslit/phraseEnglish; mobile reads phraseTransliteration/meaning.
+  private aliasCounter<T extends { phraseTranslit?: string | null; phraseEnglish?: string | null }>(row: T) {
+    return {
+      ...row,
+      phraseTransliteration: row.phraseTranslit ?? null,
+      meaning: row.phraseEnglish ?? null,
+    };
+  }
+
   async getCounters(userId: string) {
-    return this.prisma.dhikrCounter.findMany({
+    const counters = await this.prisma.dhikrCounter.findMany({
       where: { userId, isActive: true },
       orderBy: { updatedAt: 'desc' },
     });
+    return counters.map((c) => this.aliasCounter(c));
   }
 
-  async createCounter(userId: string, data: { name: string; phrase: string; targetCount?: number }) {
+  async createCounter(
+    userId: string,
+    data: {
+      name: string;
+      phrase: string;
+      targetCount?: number;
+      phraseArabic?: string;
+      phraseTranslit?: string;
+    },
+  ) {
     // Try to resolve against the dictionary so we can populate the bilingual
     // fields with canonical text. For custom phrases the user invented (e.g.
     // "Morning adhkar"), the dictionary throws — fall back to storing what
@@ -36,13 +56,15 @@ export class DhikrService {
         phraseArabic = data.phrase;
         phraseEnglish = data.name;
       } else {
-        phraseArabic = data.name;
+        // Prefer client-supplied Arabic over stuffing the counter *name* into
+        // the Arabic slot (which corrupts bilingual display).
+        phraseArabic = data.phraseArabic || data.name;
         phraseEnglish = data.phrase;
-        phraseTranslit = data.phrase;
+        phraseTranslit = data.phraseTranslit || data.phrase;
       }
     }
 
-    return this.prisma.dhikrCounter.create({
+    const created = await this.prisma.dhikrCounter.create({
       data: {
         userId,
         name: data.name,
@@ -52,6 +74,7 @@ export class DhikrService {
         targetCount: data.targetCount,
       },
     });
+    return this.aliasCounter(created);
   }
 
   async updateCounterFields(
@@ -62,7 +85,8 @@ export class DhikrService {
     if (fields.setCount !== undefined) data.count = fields.setCount;
     if (fields.targetCount !== undefined) data.targetCount = fields.targetCount;
     if (fields.name !== undefined) data.name = fields.name;
-    return this.prisma.dhikrCounter.update({ where: { id }, data });
+    const updated = await this.prisma.dhikrCounter.update({ where: { id }, data });
+    return this.aliasCounter(updated);
   }
 
   async incrementCounter(id: string, count: number = 1) {
@@ -107,7 +131,7 @@ export class DhikrService {
         },
       });
 
-      return updatedCounter;
+      return this.aliasCounter(updatedCounter);
     });
   }
 
@@ -130,7 +154,7 @@ export class DhikrService {
       else end.setDate(end.getDate() + 1); // daily default
     }
 
-    return this.prisma.dhikrGoal.create({
+    const goal = await this.prisma.dhikrGoal.create({
       data: {
         userId,
         phraseArabic: resolvedPhrase.arabic,
@@ -142,6 +166,7 @@ export class DhikrService {
         endDate: end,
       },
     });
+    return this.aliasCounter(goal);
   }
 
   async getGoals(userId: string) {
@@ -190,7 +215,7 @@ export class DhikrService {
         const daysRemaining = Math.max(0, Math.ceil(msLeft / 86400000));
 
         return {
-          ...goal,
+          ...this.aliasCounter(goal),
           currentCount,
           progressPercent,
           daysRemaining,
@@ -296,11 +321,35 @@ export class DhikrService {
     };
   }
 
-  async getHistory(userId: string, limit: number = 30) {
-    return this.prisma.dhikrHistory.findMany({
-      where: { userId },
+  async getHistory(userId: string, from?: string, to?: string, limit: number = 30) {
+    const where: any = { userId };
+    if (from || to) {
+      where.date = {};
+      if (from) {
+        const start = new Date(from);
+        if (!isNaN(start.getTime())) where.date.gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        if (!isNaN(end.getTime())) {
+          end.setHours(23, 59, 59, 999);
+          where.date.lte = end;
+        }
+      }
+      if (Object.keys(where.date).length === 0) delete where.date;
+    }
+
+    const rows = await this.prisma.dhikrHistory.findMany({
+      where,
       orderBy: { date: 'desc' },
       take: limit,
     });
+
+    // `recordedAt` is an additive alias of `date` for the mobile client;
+    // web keeps reading `date`.
+    return rows.map((row) => ({
+      ...this.aliasCounter(row),
+      recordedAt: row.date,
+    }));
   }
 }

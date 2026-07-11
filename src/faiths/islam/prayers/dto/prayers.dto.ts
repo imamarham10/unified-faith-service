@@ -34,3 +34,15 @@ export class LogPrayerDto {
   @IsEnum(['on_time', 'late', 'qada', 'missed'])
   status: string;
 }
+
+export class AdjustQadaDto {
+  @IsNotEmpty()
+  @IsEnum(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'])
+  prayerName: string;
+
+  // How many to add/remove in one call; defaults to 1.
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => (value === undefined ? undefined : parseInt(value, 10)))
+  by?: number;
+}

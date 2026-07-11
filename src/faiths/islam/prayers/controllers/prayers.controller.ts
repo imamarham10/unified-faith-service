@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, ValidationPipe, UsePipes, UseGuards, BadRequestException } from '@nestjs/common';
 import { PrayersService } from '../services/prayers.service';
-import { GetPrayerTimesDto, LogPrayerDto } from '../dto/prayers.dto';
+import { GetPrayerTimesDto, LogPrayerDto, AdjustQadaDto } from '../dto/prayers.dto';
 import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../../../auth-service/decorators/current-user.decorator';
 import { Public } from '../../../../auth-service/decorators/public.decorator';
@@ -46,8 +46,37 @@ export class PrayersController {
     @CurrentUser() user: CurrentUserData,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('date') date?: string,
   ) {
-    return this.prayersService.getPrayerLogs(user.userId, fromDate, toDate);
+    return this.prayersService.getPrayerLogs(user.userId, fromDate, toDate, date);
+  }
+
+  // Alias of GET logs — the mobile client reads back from `GET log?date=`.
+  @Get('log')
+  async getPrayerLog(
+    @CurrentUser() user: CurrentUserData,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.prayersService.getPrayerLogs(user.userId, fromDate, toDate, date);
+  }
+
+  @Get('qada')
+  async getQadaCounts(@CurrentUser() user: CurrentUserData) {
+    return this.prayersService.getQadaCounts(user.userId);
+  }
+
+  @Post('qada/increment')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async incrementQada(@CurrentUser() user: CurrentUserData, @Body() body: AdjustQadaDto) {
+    return this.prayersService.adjustQada(user.userId, body.prayerName, body.by ?? 1);
+  }
+
+  @Post('qada/decrement')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async decrementQada(@CurrentUser() user: CurrentUserData, @Body() body: AdjustQadaDto) {
+    return this.prayersService.adjustQada(user.userId, body.prayerName, -(body.by ?? 1));
   }
 
   @Delete('log/:id')

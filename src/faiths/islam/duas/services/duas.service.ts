@@ -1,9 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 
 @Injectable()
 export class DuasService {
   constructor(private prisma: PrismaService) {}
+
+  // Additive alias: the Prisma column is `textTranslit` but the mobile client
+  // reads `textTransliteration`. Web keeps reading `textTranslit`.
+  private aliasDua<T extends { textTranslit?: string | null } | null>(dua: T) {
+    if (!dua) return dua;
+    return {
+      ...dua,
+      textTransliteration: dua.textTranslit ?? null,
+    };
+  }
 
   async getDuas(filters: any) {
     const where: any = {};
@@ -12,21 +22,23 @@ export class DuasService {
       where.categoryId = filters.categoryId;
     }
 
-    return (this.prisma as any).dua.findMany({
+    const duas = await (this.prisma as any).dua.findMany({
       where,
       include: {
         category: true,
       },
     });
+    return duas.map((d: any) => this.aliasDua(d));
   }
 
   async getDua(id: string) {
-    return (this.prisma as any).dua.findUnique({
+    const dua = await (this.prisma as any).dua.findUnique({
       where: { id },
       include: {
         category: true,
       },
     });
+    return this.aliasDua(dua);
   }
 
   async getCategories() {
@@ -38,7 +50,7 @@ export class DuasService {
   }
 
   async searchDuas(query: string) {
-    return (this.prisma as any).dua.findMany({
+    const duas = await (this.prisma as any).dua.findMany({
       where: {
         OR: [
           {
@@ -65,6 +77,7 @@ export class DuasService {
         category: true,
       },
     });
+    return duas.map((d: any) => this.aliasDua(d));
   }
 
   async createCustomDua(createDuaDto: any) {
@@ -87,6 +100,32 @@ export class DuasService {
     });
   }
 
+  async removeFavorite(userId: string, duaId: string) {
+    const favorite = await (this.prisma as any).userFavoriteDua.findUnique({
+      where: {
+        userId_duaId: {
+          userId,
+          duaId,
+        },
+      },
+    });
+
+    if (!favorite) {
+      throw new NotFoundException('Favorite not found');
+    }
+
+    await (this.prisma as any).userFavoriteDua.delete({
+      where: {
+        userId_duaId: {
+          userId,
+          duaId,
+        },
+      },
+    });
+
+    return { success: true, duaId };
+  }
+
   async getFavorites(userId: string) {
     const favorites = await (this.prisma as any).userFavoriteDua.findMany({
       where: { userId },
@@ -97,7 +136,7 @@ export class DuasService {
       return [];
     }
 
-    return (this.prisma as any).dua.findMany({
+    const duas = await (this.prisma as any).dua.findMany({
       where: {
         id: { in: duaIds },
       },
@@ -105,6 +144,7 @@ export class DuasService {
         category: true,
       },
     });
+    return duas.map((d: any) => this.aliasDua(d));
   }
 
   async getDailyDua() {
@@ -129,6 +169,6 @@ export class DuasService {
       },
     });
 
-    return results[0] ?? null;
+    return this.aliasDua(results[0] ?? null);
   }
 }

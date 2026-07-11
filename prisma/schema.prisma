@@ -270,6 +270,22 @@ model PrayerLog {
   @@map("prayer_logs")
 }
 
+// Standalone qada (make-up prayer) tally per user per prayer. Kept separate
+// from PrayerLog so incrementing a qada owed for a past day never collides
+// with (or overwrites) the log row of the current day.
+model PrayerQadaCount {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  prayerName String   @map("prayer_name") // fajr, dhuhr, asr, maghrib, isha
+  count      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, prayerName])
+  @@index([userId])
+  @@map("prayer_qada_counts")
+}
+
 model CalculationMethod {
   id          String  @id @default(uuid())
   name        String  @unique
@@ -799,6 +815,7 @@ model HinduTextVerse {
   verseNumber     Int                      @map("verse_number")
   sanskritText    String                   @map("sanskrit_text")
   transliteration String?
+  isFeatured      Boolean                  @default(false) @map("is_featured")
   createdAt       DateTime                 @default(now()) @map("created_at")
   text            HinduText                @relation(fields: [textId], references: [id], onDelete: Cascade)
   chapter         HinduTextChapter?        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
@@ -1014,7 +1031,10 @@ model Temple {
   lng           Float
   address       String
   city          String?
+  state         String?
   country       String
+  description   String?
+  significance  String?
   photos        String[]
   googlePlaceId String?               @map("google_place_id")
   source        String                // 'curated' | 'google'

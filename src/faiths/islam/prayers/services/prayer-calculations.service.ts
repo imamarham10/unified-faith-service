@@ -78,7 +78,8 @@ export class PrayerCalculationsService {
     switch (slug?.toLowerCase()) {
       case 'mwl': return CalculationMethod.MuslimWorldLeague();
       case 'isna': return CalculationMethod.NorthAmerica();
-      case 'egypt': return CalculationMethod.Egyptian();
+      case 'egypt':
+      case 'egyptian': return CalculationMethod.Egyptian();
       case 'makkah': return CalculationMethod.UmmAlQura();
       case 'karachi': return CalculationMethod.Karachi();
       case 'kuwait': return CalculationMethod.Kuwait();

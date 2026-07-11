@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { DuasService } from '../services/duas.service';
 import { JwtAuthGuard } from '../../../../auth-service/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../../../auth-service/decorators/current-user.decorator';
@@ -37,6 +37,15 @@ export class DuasController {
   @UseGuards(JwtAuthGuard)
   async getFavorites(@CurrentUser() user: CurrentUserData) {
     return this.duasService.getFavorites(user.userId);
+  }
+
+  @Delete('favorites/:duaId')
+  @UseGuards(JwtAuthGuard)
+  async removeFavorite(
+    @CurrentUser() user: CurrentUserData,
+    @Param('duaId') duaId: string,
+  ) {
+    return this.duasService.removeFavorite(user.userId, duaId);
   }
 
   @Post('custom')

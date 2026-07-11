@@ -14,6 +14,21 @@ export class CreateCounterDto {
   @IsOptional()
   @IsNumber()
   targetCount?: number;
+
+  // Optional client-supplied bilingual text, used for custom phrases the
+  // dictionary can't resolve (otherwise stripped by the whitelist pipe and
+  // the counter name ends up in the Arabic slot).
+  @IsOptional()
+  @IsString()
+  phraseArabic?: string;
+
+  @IsOptional()
+  @IsString()
+  phraseTranslit?: string;
+
+  @IsOptional()
+  @IsString()
+  phraseTransliteration?: string;
 }
 
 export class UpdateCounterDto {

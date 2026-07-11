@@ -21,7 +21,10 @@ export class DhikrController {
   @Post('counters')
   @UsePipes(new ValidationPipe({ transform: true }))
   async createCounter(@CurrentUser() user: CurrentUserData, @Body() body: CreateCounterDto) {
-    return this.dhikrService.createCounter(user.userId, body);
+    return this.dhikrService.createCounter(user.userId, {
+      ...body,
+      phraseTranslit: body.phraseTranslit ?? body.phraseTransliteration,
+    });
   }
 
   @Patch('counters/:id')
@@ -61,12 +64,32 @@ export class DhikrController {
   }
 
   @Get('history')
-  async getHistory(@CurrentUser() user: CurrentUserData) {
-    return this.dhikrService.getHistory(user.userId);
+  async getHistory(
+    @CurrentUser() user: CurrentUserData,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const take = limit ? Math.min(Math.max(parseInt(limit, 10) || 30, 1), 365) : 30;
+    return this.dhikrService.getHistory(user.userId, from, to, take);
   }
 
   @Get('phrases')
   async getAvailablePhrases() {
     return this.dictionaryService.getAllPhrases();
+  }
+
+  // Same dictionary in the mobile client's field names. `phrases` keeps the
+  // original shape for the web client.
+  @Get('dictionary')
+  async getDictionary() {
+    return this.dictionaryService.getAllPhrases().map((p, index) => ({
+      id: p.transliteration.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `phrase-${index}`,
+      phraseArabic: p.arabic,
+      phraseTransliteration: p.transliteration,
+      meaning: p.english,
+      category: p.category,
+      recommendedCount: 33,
+    }));
   }
 }

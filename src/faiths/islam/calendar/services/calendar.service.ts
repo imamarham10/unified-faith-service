@@ -305,9 +305,26 @@ export class CalendarService {
    * @param timezone Optional IANA timezone (defaults to UTC)
    * @param calendarAdjust 0=standard/Gulf, 1=India/Pakistan/Bangladesh
    */
-  async getToday(timezone?: string, calendarAdjust: number = 0): Promise<HijriDateInfo> {
+  async getToday(timezone?: string, calendarAdjust: number = 0) {
     const today = this.getDateInTimezone(timezone);
-    return this.gregorianToHijri(today, timezone, calendarAdjust);
+    const info = await this.gregorianToHijri(today, timezone, calendarAdjust);
+
+    // Additive nested aliases: the mobile client parses {gregorian:{date},
+    // hijri:{year,month,day,monthName}}; web keeps reading the flat fields.
+    return {
+      ...info,
+      gregorian: {
+        date: info.gregorianDate,
+        dayOfWeek: info.dayOfWeek,
+      },
+      hijri: {
+        year: info.hijriYear,
+        month: info.hijriMonth,
+        day: info.hijriDay,
+        monthName: info.hijriMonthName,
+        monthNameArabic: this.hijriMonthNamesArabic[info.hijriMonth - 1],
+      },
+    };
   }
 
   /**

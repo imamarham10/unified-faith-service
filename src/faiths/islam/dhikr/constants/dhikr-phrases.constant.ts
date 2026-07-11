@@ -131,11 +131,17 @@ export function normalizeArabic(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
-// Normalize English text by lowercasing and removing extra punctuation
+// Normalize English/transliterated text: fold Latin diacritics to their base
+// letters (SubḥānAllāh → subhanallah), then strip punctuation. Clients send
+// academic transliterations with macrons/dots — without NFD folding, the
+// punctuation regex deletes those letters entirely ('subnallh') and lookups
+// that should hit always miss.
 export function normalizeEnglish(text: string): string {
   return text
     .trim()
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Strip combining marks left by NFD
     .replace(/[^\w\s]/g, '') // Remove punctuation except spaces and word characters
     .replace(/\s+/g, ' ');
 }
