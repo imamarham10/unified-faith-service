@@ -31,6 +31,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         ssl: {
           rejectUnauthorized: false, // Accept self-signed certificates (required for Aiven)
         },
+        // Aiven allows only ~20 connections total; uncapped pg pools default
+        // to 10 EACH and serverless instances multiply — cap hard.
+        max: 3,
+        idleTimeoutMillis: 10000,
       });
       const adapter = new PrismaPg(pool);
       super({ adapter });

@@ -19,8 +19,14 @@ export class AccountService {
       throw new NotFoundException('User not found');
     }
 
+    // NOT a single $transaction: 30 sequential statements from a serverless
+    // region far from the DB exceed Prisma's 5s transaction timeout (this
+    // 500'd consistently on Vercel while passing locally). The child deletes
+    // are independent and idempotent, so they run as a bounded-parallel batch;
+    // the user row is deleted LAST, so a partial failure leaves the account
+    // intact and the operation safely retryable.
     const p = this.prisma as any;
-    await this.prisma.$transaction([
+    const childDeletes = [
       // Auth & session
       p.refreshToken.deleteMany({ where: { userId } }),
       p.userRole.deleteMany({ where: { userId } }),
@@ -57,9 +63,11 @@ export class AccountService {
       p.userFavoriteHinduStory.deleteMany({ where: { userId } }),
       // Billing records (payment history lives in Razorpay's ledger)
       p.subscription.deleteMany({ where: { userId } }),
-      // Finally, the account itself
-      p.user.delete({ where: { id: userId } }),
-    ]);
+    ];
+    // Parallelism is naturally bounded by the pg pool (max 3 connections).
+    await Promise.all(childDeletes);
+    // Finally, the account itself
+    await p.user.delete({ where: { id: userId } });
 
     return { success: true, message: 'Account and all associated data permanently deleted' };
   }
