@@ -43,7 +43,12 @@ export class PujaTimesService {
       end: new Date(sunset.getTime() + 45 * 60 * 1000).toISOString(),
     };
 
-    const now = new Date();
+    // The sun-position library returns "wall-clock-as-UTC" timestamps (a
+    // 5:31 AM IST sunrise arrives as 05:31Z). Comparing them against the
+    // real UTC instant shifts everything by the user's UTC offset — so
+    // "now" must be encoded the same way: the current wall-clock in the
+    // requested timezone, stamped as if it were UTC.
+    const now = this.wallClockNow(timezone);
     const isInBand = (band: TimeBand): boolean => {
       const start = new Date(band.start).getTime();
       const end = new Date(band.end).getTime();
@@ -97,5 +102,34 @@ export class PujaTimesService {
       sandhyas,
       next,
     };
+  }
+
+  /**
+   * Current wall-clock in `timezone`, encoded as-if-UTC — the same
+   * convention the sun-position timestamps use. Falls back to the real
+   * instant if the timezone string is invalid.
+   */
+  wallClockNow(timezone: string): Date {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).formatToParts(new Date());
+      const get = (type: string) =>
+        Number(parts.find((p) => p.type === type)?.value ?? NaN);
+      const hour = get('hour') === 24 ? 0 : get('hour');
+      const wall = new Date(
+        Date.UTC(get('year'), get('month') - 1, get('day'), hour, get('minute'), get('second')),
+      );
+      return isNaN(wall.getTime()) ? new Date() : wall;
+    } catch {
+      return new Date();
+    }
   }
 }

@@ -35,7 +35,10 @@ export class PujaTimesController {
     @Query('timezone') timezone = 'UTC',
   ) {
     this.validateCoords(lat, lng);
-    return this.pujaTimesService.getTimesForDate(new Date(), lat, lng, timezone);
+    // "Today" must be the user's calendar date, not the server's UTC date —
+    // at 1:00 AM IST the server is still on yesterday.
+    const today = this.pujaTimesService.wallClockNow(timezone);
+    return this.pujaTimesService.getTimesForDate(today, lat, lng, timezone);
   }
 
   @Public()
