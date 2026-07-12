@@ -121,7 +121,41 @@ export class HadithsService {
       throw new NotFoundException(`Hadith with ID ${id} not found`);
     }
 
-    return hadith;
+    // `context` is an additive key: mobile/web clients that only know the
+    // flat hadith shape are unaffected. Nav fields power prev/next links and
+    // related-hadith internal linking on the web (SEO crawl paths).
+    const navSelect = {
+      id: true,
+      hadithNumber: true,
+      chapterTitle: true,
+      textEnglish: true,
+    };
+    const [prev, next, related] = await Promise.all([
+      (this.prisma as any).hadith.findFirst({
+        where: { bookId: hadith.bookId, hadithNumber: { lt: hadith.hadithNumber } },
+        orderBy: { hadithNumber: 'desc' },
+        select: navSelect,
+      }),
+      (this.prisma as any).hadith.findFirst({
+        where: { bookId: hadith.bookId, hadithNumber: { gt: hadith.hadithNumber } },
+        orderBy: { hadithNumber: 'asc' },
+        select: navSelect,
+      }),
+      hadith.chapterTitle
+        ? (this.prisma as any).hadith.findMany({
+            where: {
+              bookId: hadith.bookId,
+              chapterTitle: hadith.chapterTitle,
+              id: { not: hadith.id },
+            },
+            orderBy: { hadithNumber: 'asc' },
+            take: 4,
+            select: navSelect,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return { ...hadith, context: { prev, next, related } };
   }
 
   async searchHadiths(query: string, isPremiumUser: boolean = false) {

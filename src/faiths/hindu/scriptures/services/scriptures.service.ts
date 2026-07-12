@@ -60,6 +60,9 @@ export class ScripturesService {
     if (!text) {
       throw new NotFoundException(`Text with slug '${slug}' not found`);
     }
+    // `lang` accepts a comma list ("en,hi") so verse pages can render both
+    // translations from one request; single-lang callers are unaffected.
+    const langs = lang.split(',').map((l) => l.trim()).filter(Boolean);
     const chapter = await this.prisma.hinduTextChapter.findUnique({
       where: { textId_chapterNumber: { textId: text.id, chapterNumber } },
       include: {
@@ -67,7 +70,7 @@ export class ScripturesService {
           orderBy: { verseNumber: 'asc' },
           include: {
             translations: {
-              where: { languageCode: lang },
+              where: { languageCode: { in: langs.length ? langs : ['en'] } },
               select: {
                 id: true,
                 languageCode: true,
