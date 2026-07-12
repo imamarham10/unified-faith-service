@@ -20,6 +20,22 @@ export class HadithsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /** Id-only list for sitemap generation — excludes premium books. */
+  async getSitemapIds() {
+    const cacheKey = 'hadiths:sitemap-ids';
+    const cached = await this.cacheManager.get<string[]>(cacheKey);
+    if (cached) return cached;
+
+    const rows = await (this.prisma as any).hadith.findMany({
+      where: { book: { isPremium: false } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    const ids = rows.map((r: { id: string }) => r.id);
+    await this.cacheManager.set(cacheKey, ids, 24 * 60 * 60 * 1000);
+    return ids;
+  }
+
   async getBooks() {
     const cacheKey = 'hadiths:books';
     const cached = await this.cacheManager.get<any[]>(cacheKey);

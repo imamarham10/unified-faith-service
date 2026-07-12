@@ -29,6 +29,12 @@ export class HadithsController {
     return this.hadithsService.getBooks();
   }
 
+  // Lightweight id list for sitemap generation (id-only, non-premium books)
+  @Get('sitemap-ids')
+  async getSitemapIds() {
+    return this.hadithsService.getSitemapIds();
+  }
+
   @Get('daily')
   async getDailyHadith() {
     return this.hadithsService.getDailyHadith();
