@@ -71,15 +71,17 @@ export class QuranService {
   }
 
   async getVerse(verseKey: string, language: string = 'en') {
-    // verseKey typically "surahId:verseNumber", but implementation requested ID. 
+    // verseKey typically "surahId:verseNumber", but implementation requested ID.
     // Assuming API passes database UUID or "surah:verse" key.
     // If param is database ID (UUID):
+    const verseInclude = {
+      surah: true,
+      translations: { where: { language } },
+      transliteration: true,
+    };
     let verse = await this.prisma.quranVerse.findUnique({
       where: { id: verseKey },
-      include: {
-        surah: true,
-        translations: { where: { language } },
-      },
+      include: verseInclude,
     });
 
     // If not found by UUID, try to parse "surah:verse"
@@ -88,10 +90,7 @@ export class QuranService {
         if (!isNaN(surahId) && !isNaN(verseNum)) {
             verse = await this.prisma.quranVerse.findUnique({
                 where: { surahId_verseNumber: { surahId, verseNumber: verseNum } },
-                include: {
-                    surah: true,
-                    translations: { where: { language } },
-                }
+                include: verseInclude,
             });
         }
     }
@@ -100,7 +99,28 @@ export class QuranService {
       throw new NotFoundException(`Verse ${verseKey} not found`);
     }
 
-    return verse;
+    // `context` is additive (same pattern as hadiths): prev/next refs for
+    // verse-page navigation, crossing surah boundaries at the edges.
+    let prev: { surahId: number; verseNumber: number } | null = null;
+    let next: { surahId: number; verseNumber: number } | null = null;
+    if (verse.verseNumber > 1) {
+      prev = { surahId: verse.surahId, verseNumber: verse.verseNumber - 1 };
+    } else if (verse.surahId > 1) {
+      const prevSurah = await this.prisma.quranSurah.findUnique({
+        where: { id: verse.surahId - 1 },
+        select: { verseCount: true },
+      });
+      if (prevSurah) {
+        prev = { surahId: verse.surahId - 1, verseNumber: prevSurah.verseCount };
+      }
+    }
+    if (verse.verseNumber < verse.surah.verseCount) {
+      next = { surahId: verse.surahId, verseNumber: verse.verseNumber + 1 };
+    } else if (verse.surahId < 114) {
+      next = { surahId: verse.surahId + 1, verseNumber: 1 };
+    }
+
+    return { ...verse, context: { prev, next } };
   }
 
   async searchVerses(query: string, language: string = 'en') {
