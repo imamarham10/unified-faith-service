@@ -87,6 +87,65 @@ export class ScripturesService {
     return chapter;
   }
 
+  /**
+   * Chapter narrations. Display metadata for known narrator slugs lives here
+   * (the audio table stores only the slug + url), mirroring how Quran
+   * reciters carry display info alongside generated URLs.
+   */
+  private static readonly NARRATORS: Record<
+    string,
+    { name: string; language: string; credit: string; sortOrder: number }
+  > = {
+    // Lower sortOrder = earlier in the list; the player defaults to the
+    // first track, so Hindi narration is the default experience.
+    'siraat-hindi-anuvad': {
+      name: 'सरल हिन्दी अनुवाद — Siraat',
+      language: 'hi',
+      credit: 'Siraat original translation · AI narration',
+      sortOrder: 10,
+    },
+    'edwin-arnold-librivox': {
+      name: 'The Song Celestial — Sir Edwin Arnold',
+      language: 'en',
+      credit: 'LibriVox recording · Public domain',
+      sortOrder: 20,
+    },
+  };
+
+  async getChapterAudio(slug: string, chapterNumber: number) {
+    const text = await this.prisma.hinduText.findUnique({ where: { slug } });
+    if (!text) {
+      throw new NotFoundException(`Text with slug '${slug}' not found`);
+    }
+    const chapter = await this.prisma.hinduTextChapter.findUnique({
+      where: { textId_chapterNumber: { textId: text.id, chapterNumber } },
+    });
+    if (!chapter) {
+      throw new NotFoundException(
+        `Chapter ${chapterNumber} not found in '${slug}'`,
+      );
+    }
+    const rows = await this.prisma.hinduTextAudio.findMany({
+      where: { textId: text.id, chapterId: chapter.id },
+      orderBy: { reciterSlug: 'asc' },
+    });
+    return rows
+      .map((row) => {
+        const meta = ScripturesService.NARRATORS[row.reciterSlug];
+        return {
+          reciterSlug: row.reciterSlug,
+          name: meta?.name ?? row.reciterSlug,
+          language: meta?.language ?? 'en',
+          credit: meta?.credit ?? null,
+          url: row.url,
+          isPremium: row.isPremium,
+          sortOrder: meta?.sortOrder ?? 100,
+        };
+      })
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(({ sortOrder: _sortOrder, ...track }) => track);
+  }
+
   async getVerse(id: string, lang: string = 'en') {
     const verse = await this.prisma.hinduTextVerse.findUnique({
       where: { id },

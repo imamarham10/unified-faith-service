@@ -46,6 +46,19 @@ export class ScripturesController {
     return this.scripturesService.getChapter(slug, chapterNum, lang || 'en');
   }
 
+  @Public()
+  @Get('texts/:slug/chapters/:chapterNumber/audio')
+  getChapterAudio(
+    @Param('slug') slug: string,
+    @Param('chapterNumber') chapterNumber: string,
+  ) {
+    const chapterNum = Number(chapterNumber);
+    if (!Number.isInteger(chapterNum)) {
+      throw new BadRequestException('chapterNumber must be an integer');
+    }
+    return this.scripturesService.getChapterAudio(slug, chapterNum);
+  }
+
   // ----- Featured + search (public) -----
   @Public()
   @Get('featured')
