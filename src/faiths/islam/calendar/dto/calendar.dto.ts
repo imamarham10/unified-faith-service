@@ -40,6 +40,13 @@ export class ConvertToGregorianDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0; // 0=standard/Gulf, 1=India/Pakistan/Bangladesh
 }
 
 export class GetGregorianMonthDto {
@@ -83,6 +90,13 @@ export class GetHijriMonthDto {
   @IsOptional()
   @IsString()
   timezone?: string; // IANA timezone
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2)
+  @Max(2)
+  @Type(() => Number)
+  calendarAdjust?: number = 0; // 0=standard/Gulf, 1=India/Pakistan/Bangladesh
 }
 
 export class GetUpcomingEventsDto {

@@ -51,7 +51,8 @@ export class CalendarController {
       query.year,
       query.month,
       query.day,
-      query.timezone
+      query.timezone,
+      query.calendarAdjust ?? 0
     );
   }
 
@@ -82,7 +83,8 @@ export class CalendarController {
     return this.calendarService.getHijriMonthCalendar(
       query.year,
       query.month,
-      query.timezone
+      query.timezone,
+      query.calendarAdjust ?? 0
     );
   }
 

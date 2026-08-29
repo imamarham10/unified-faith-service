@@ -79,55 +79,6 @@ export class CalendarService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  // Use Aladhan API for moon-sighting-aware Hijri conversion
-  // calendarAdjust: 0=standard/Gulf, 1=India/Pakistan (we shift the lookup date back by N days)
-  private async aladhanGToH(
-    date: Date,
-    calendarAdjust: number = 0,
-  ): Promise<{ day: number; month: number; year: number; monthName: string } | null> {
-    try {
-      // Shift the date back by calendarAdjust days (same logic as localGregorianToHijriNumbers)
-      const lookupDate = new Date(date);
-      lookupDate.setDate(date.getDate() - calendarAdjust);
-
-      const dd = String(lookupDate.getDate()).padStart(2, '0');
-      const mm = String(lookupDate.getMonth() + 1).padStart(2, '0');
-      const yyyy = lookupDate.getFullYear();
-      const cacheKey = `aladhan:gtoh:${yyyy}-${mm}-${dd}`;
-
-      // Check Redis first
-      const cached = await this.cacheManager.get<any>(cacheKey);
-      if (cached) return cached;
-
-      // Fetch from Aladhan
-      const url = `https://api.aladhan.com/v1/gToH/${dd}-${mm}-${yyyy}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return null;
-      const json = await res.json() as any;
-      if (json.code !== 200) return null;
-
-      const h = json.data?.hijri;
-      if (!h) return null;
-
-      const day = parseInt(h.day);
-      const month = typeof h.month?.number === 'number' ? h.month.number : parseInt(h.month?.number);
-      const year = parseInt(h.year);
-
-      // Validate parsed values — fall back to local converter if malformed
-      if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
-        return null;
-      }
-
-      const result = { day, month, year, monthName: h.month?.en || '' };
-
-      // Cache for 24 hours (Hijri date for a Gregorian date never changes)
-      await this.cacheManager.set(cacheKey, result, CACHE_TTL.DAY);
-      return result;
-    } catch {
-      return null; // Fall back to local converter on any error
-    }
-  }
-
   /**
    * Get current date in a specific timezone
    * @param timezone IANA timezone string (e.g., 'Asia/Kolkata', 'America/New_York')
@@ -174,6 +125,16 @@ export class CalendarService {
    * @param date Gregorian date
    * @param timezone Optional IANA timezone to interpret the date in
    * @param calendarAdjust 0=standard/Gulf (default), 1=India/Pakistan/Bangladesh
+   *
+   * Always uses the local `@tabby_ai/hijri-converter`-based converter (same
+   * library `hijriToGregorian()` uses) — this used to prefer the Aladhan API
+   * when reachable, but Aladhan and the local converter disagree with each
+   * other by a day independent of calendarAdjust, which made this function
+   * and `hijriToGregorian()` NOT true inverses of each other (e.g. "today"
+   * and the calendar grid could show different Hijri dates for the same
+   * Gregorian day). Consistency between the two directions was chosen over
+   * Aladhan's live-network freshness — see calendar_repository.dart's
+   * kCalendarAdjust doc comment on the mobile side for the full story.
    */
   async gregorianToHijri(date: Date, timezone?: string, calendarAdjust: number = 0): Promise<HijriDateInfo> {
     // Use timezone-aware date extraction so the cache key and gregorianDate are always correct,
@@ -183,24 +144,10 @@ export class CalendarService {
     const cached = await this.cacheManager.get<HijriDateInfo>(cacheKey);
     if (cached) return cached;
 
-    // Build a UTC-midnight Date for Aladhan/local-converter lookups (avoids time-of-day noise)
+    // Build a UTC-midnight Date for the local-converter lookup (avoids time-of-day noise)
     const lookupDate = new Date(Date.UTC(year, month - 1, day));
 
-    // Try Aladhan API first (moon-sighting aware), fall back to local converter
-    const aladhanResult = await this.aladhanGToH(lookupDate, calendarAdjust);
-    let hijriDay: number, hijriMonth: number, hijriYear: number;
-
-    if (aladhanResult) {
-      hijriDay = aladhanResult.day;
-      hijriMonth = aladhanResult.month;
-      hijriYear = aladhanResult.year;
-    } else {
-      // Fallback: local converter with calendarAdjust applied
-      const { hijriDay: d, hijriMonth: m, hijriYear: y } = this.localGregorianToHijriNumbers(lookupDate, calendarAdjust);
-      hijriDay = d;
-      hijriMonth = m;
-      hijriYear = y;
-    }
+    const { hijriDay, hijriMonth, hijriYear } = this.localGregorianToHijriNumbers(lookupDate, calendarAdjust);
 
     const events = await this.getEventsForHijriDate(hijriMonth, hijriDay);
 
@@ -224,20 +171,32 @@ export class CalendarService {
    * @param month Hijri month
    * @param day Hijri day
    * @param timezone Optional IANA timezone for the result
+   * @param calendarAdjust 0=standard/Gulf (default), 1=India/Pakistan/Bangladesh —
+   *   shifts the result forward by N days, the inverse of gregorianToHijri's
+   *   "shift the lookup date back by N days" so the two stay true inverses of
+   *   each other (see gregorianToHijri's doc comment for the same convention).
    */
-  async hijriToGregorian(year: number, month: number, day: number, timezone?: string): Promise<HijriDateInfo> {
+  async hijriToGregorian(year: number, month: number, day: number, timezone?: string, calendarAdjust: number = 0): Promise<HijriDateInfo> {
     const gregorianDate = hijriToGregorian({ year, month, day });
-    const date = new Date(gregorianDate.year, gregorianDate.month - 1, gregorianDate.day);
+    // Build as UTC midnight (not local midnight) — the server can run in any
+    // timezone (e.g. Asia/Calcutta, UTC+5:30), and a local-midnight Date's
+    // .toISOString()/.getDay() silently roll back to the previous UTC day in
+    // any positive-offset timezone. Same bug class getGregorianMonthCalendar
+    // already documents and avoids via Date.UTC (see its comment above) —
+    // this method just hadn't been fixed the same way yet.
+    const date = new Date(Date.UTC(gregorianDate.year, gregorianDate.month - 1, gregorianDate.day));
+    date.setUTCDate(date.getUTCDate() + calendarAdjust);
 
     const events = await this.getEventsForHijriDate(month, day);
+    const { dateStr, dayOfWeek } = this.extractDateInTimezone(date, timezone);
 
     return {
       hijriDay: day,
       hijriMonth: month,
       hijriYear: year,
       hijriMonthName: this.hijriMonthNames[month - 1],
-      gregorianDate: date.toISOString().split('T')[0],
-      dayOfWeek: this.dayNames[date.getDay()],
+      gregorianDate: dateStr,
+      dayOfWeek,
       events
     };
   }
@@ -281,14 +240,15 @@ export class CalendarService {
    * @param year Hijri year
    * @param month Hijri month (1-12)
    * @param timezone Optional IANA timezone
+   * @param calendarAdjust 0=standard/Gulf, 1=India/Pakistan/Bangladesh
    */
-  async getHijriMonthCalendar(year: number, month: number, timezone?: string): Promise<CalendarMonth> {
+  async getHijriMonthCalendar(year: number, month: number, timezone?: string, calendarAdjust: number = 0): Promise<CalendarMonth> {
     // Hijri months are typically 29 or 30 days
     const daysInMonth = this.getHijriMonthLength(year, month);
     const days: HijriDateInfo[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const hijriInfo = await this.hijriToGregorian(year, month, day, timezone);
+      const hijriInfo = await this.hijriToGregorian(year, month, day, timezone, calendarAdjust);
       days.push(hijriInfo);
     }
 
