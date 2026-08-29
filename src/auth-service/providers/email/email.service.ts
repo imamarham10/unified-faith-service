@@ -34,6 +34,36 @@ export class EmailService {
     return this.provider.sendEmail(options);
   }
 
+  async sendFeedbackNotificationEmail(feedback: {
+    id: string;
+    type: string;
+    message: string;
+    email?: string | null;
+    pageUrl: string;
+    faithContext?: string | null;
+  }): Promise<void> {
+    const to = this.configService.get<string>('FEEDBACK_NOTIFY_EMAIL');
+    if (!to) {
+      this.logger.debug('FEEDBACK_NOTIFY_EMAIL not set — skipping feedback email notification.');
+      return;
+    }
+
+    const typeLabel = feedback.type.replace('_', ' ').toUpperCase();
+    const subject = `[Siraat Feedback] ${typeLabel}`;
+    const text = [
+      `Type: ${typeLabel}`,
+      `Page: ${feedback.pageUrl}`,
+      feedback.faithContext ? `Faith: ${feedback.faithContext}` : null,
+      feedback.email ? `Reporter email: ${feedback.email}` : 'Reporter email: (not provided)',
+      '',
+      feedback.message,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    await this.sendEmail({ to, subject, text });
+  }
+
   async sendOtpEmail(to: string, otp: string): Promise<void> {
     const subject = 'Your Login OTP Code';
     const html = this.getOtpEmailTemplate(otp);

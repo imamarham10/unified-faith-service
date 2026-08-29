@@ -30,6 +30,7 @@ model User {
   // Relations
   userRoles     UserRole[]
   subscriptions Subscription[]
+  feedback      Feedback[]
 
   // Hindu module back-relations
   hinduScriptureBookmarks    HinduScriptureBookmark[]
@@ -1137,4 +1138,28 @@ model UserFavoriteHinduStory {
 
   @@unique([userId, storyId])
   @@map("hindu_user_favorite_stories")
+}
+
+// ============================================
+// Feedback (faith-agnostic)
+// ============================================
+
+model Feedback {
+  id           String   @id @default(uuid())
+  type         String // feedback | bug | feature_request | query
+  message      String
+  email        String?
+  userId       String?  @map("user_id")
+  pageUrl      String   @map("page_url")
+  faithContext String?  @map("faith_context") // islam | hindu | null
+  userAgent    String?  @map("user_agent")
+  status       String   @default("new") // new | triaged | in_progress | resolved | wont_fix
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@map("feedback")
 }

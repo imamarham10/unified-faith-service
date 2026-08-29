@@ -68,6 +68,7 @@ import { SesProvider } from '../providers/email/ses.provider';
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    EmailService,
   ],
 })
 export class AuthModule {}
