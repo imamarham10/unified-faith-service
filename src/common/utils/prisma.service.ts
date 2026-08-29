@@ -27,19 +27,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (databaseUrl.startsWith('prisma+')) {
       superOptions = { accelerateUrl: databaseUrl };
     } else {
-      // Cap pool to 8 connections — Aiven free tier has limited connection slots
-      // (max_connections=20 total, shared with the auth-service and users-service
-      // pools at 3 each: worst case 8+3+3=14, comfortable margin under 20).
-      // Was capped at 3 after a July incident (Vercel txn timeouts under too many
-      // pooled connections) but the faith home-page loaders (islam.tsx, hindu.tsx)
-      // each fan out 5-6 concurrent Prisma-backed requests through this SAME pool
-      // (every faiths/* module injects this one) — 3 connections forced those
-      // requests to queue, adding measured seconds of latency on page load.
+      // Cap pool to 3 connections — Aiven free tier has limited connection slots.
+      // REVERTED from max:8 (2026-08-29) after a suspected production incident
+      // (login + Gita intermittently failing) shortly after that bump shipped —
+      // per-serverless-instance pools of 8 can exhaust Aiven's 20-connection
+      // budget under concurrent traffic across multiple instances, cascading
+      // into failures on the OTHER pools (auth-service, users-service) too,
+      // since they all share the same Aiven connection ceiling. The home-page
+      // loader latency this was meant to fix is a real but lower-priority
+      // problem than production stability — revisit with a smaller, safer
+      // bump (e.g. max:5) and load-test before trying again.
       // idleTimeoutMillis releases idle clients quickly between hot-reloads.
       pgPool = new Pool({
         connectionString: databaseUrl,
         ssl: { rejectUnauthorized: false },
-        max: 8,
+        max: 3,
         idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 5000,
       });
