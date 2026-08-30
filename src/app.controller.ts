@@ -14,4 +14,9 @@ export class AppController {
   getSupportedFaiths() {
     return this.appService.getSupportedFaiths();
   }
+
+  @Get('health')
+  checkHealth() {
+    return this.appService.checkHealth();
+  }
 }
