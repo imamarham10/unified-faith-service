@@ -23,8 +23,10 @@ export class SmtpProvider implements EmailProvider {
 
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
+      const fromName = this.configService.get<string>('SMTP_FROM_NAME', 'Siraat');
+      const fromAddress = this.configService.get<string>('SMTP_FROM');
       const mailOptions = {
-        from: this.configService.get<string>('SMTP_FROM'),
+        from: `"${fromName}" <${fromAddress}>`,
         to: options.to,
         subject: options.subject,
         text: options.text,

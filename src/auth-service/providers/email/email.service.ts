@@ -114,16 +114,18 @@ export class EmailService {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${heading}</title>
         </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0;">Unified Faith Service</h1>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #F5F2ED;">
+          <div style="background: linear-gradient(135deg, #16110C 0%, #3A2A15 100%); padding: 32px 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <img src="https://www.siraat.website/logo.png" alt="Siraat" width="48" height="48" style="border-radius: 12px; margin-bottom: 12px;" />
+            <h1 style="color: #F5F2ED; margin: 0; font-size: 22px;">Siraat</h1>
+            <p style="color: #E0B470; margin: 4px 0 0; font-size: 13px; letter-spacing: 0.04em;">Your Spiritual Companion</p>
           </div>
-          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
             <h2 style="color: #333; margin-top: 0;">${heading}</h2>
             <p>Hello,</p>
             <p>${intro}</p>
-            <div style="background: white; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #667eea; font-size: 36px; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">${otp}</h1>
+            <div style="background: #FDFBF7; border: 2px dashed #C8A55A; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+              <h1 style="color: #9A7B3A; font-size: 36px; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">${otp}</h1>
             </div>
             <p>This code will expire in <strong>5 minutes</strong>.</p>
             <p style="color: #666; font-size: 14px; margin-top: 30px;">
@@ -131,7 +133,7 @@ export class EmailService {
             </p>
           </div>
           <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} Unified Faith Service. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Siraat. All rights reserved.</p>
           </div>
         </body>
       </html>
