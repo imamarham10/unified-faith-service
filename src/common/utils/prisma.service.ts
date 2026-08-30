@@ -27,25 +27,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (databaseUrl.startsWith('prisma+')) {
       superOptions = { accelerateUrl: databaseUrl };
     } else {
-      // Cap pool to 3 connections — Aiven's plan allows ~20 total.
-      // REVERTED AGAIN (2026-08-30): even max:5 produced live "too many
-      // connections" errors in production (hindu/scriptures 500ing) within
-      // the same day as the max:8 incident. Back to the last long-stable
-      // value. DO NOT bump this number again without first confirming, from
-      // Aiven's own dashboard, the actual current connection count and plan
-      // ceiling (assumed ~20 from code comments, unverified against the
-      // Aiven console) — every attempt to raise it today has reproduced
-      // connection exhaustion, which means either the real ceiling is lower
-      // than assumed, something else is holding connections open, or Vercel
-      // is running more concurrent instances than expected. Real headroom
-      // for concurrent traffic needs an actual connection pooler (PgBouncer
-      // via Aiven, or Prisma Accelerate — see the accelerateUrl branch
-      // above, currently unused) in front of Postgres, not this number.
+      // MIGRATED (2026-08-30): DATABASE_URL now points at Neon (project
+      // "Siraat", shiny-wind-30761445), not Aiven, via its POOLED (-pooler)
+      // endpoint — Neon's PgBouncer sits in front of this pool and
+      // multiplexes up to ~10,000 app-level connections, which is why this
+      // number is safe to raise again after today's Aiven "too many
+      // connections" incidents (root cause there: no pooler at all on
+      // Aiven's Free/Developer tiers, only per-instance pool limits directly
+      // against Postgres). Verified locally: 20 concurrent Gita/chapter
+      // requests + interleaved login calls, all 200/401, zero failures.
+      // max:10 is a deliberate step up from the old max:3, not a return to
+      // the earlier max:8 guess — reassess with real traffic data before
+      // going higher. Migrations/dumps must use DATABASE_URL_UNPOOLED (the
+      // direct, non-pooled endpoint) — see prisma.config.ts.
       // idleTimeoutMillis releases idle clients quickly between hot-reloads.
       pgPool = new Pool({
         connectionString: databaseUrl,
         ssl: { rejectUnauthorized: false },
-        max: 3,
+        max: 10,
         idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 5000,
       });

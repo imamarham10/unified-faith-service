@@ -8,3 +8,5 @@ dist
 ../opentaqwa
 
 Claude.md
+.neon
+.claude/settings.local.json

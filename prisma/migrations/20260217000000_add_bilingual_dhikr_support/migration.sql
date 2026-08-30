@@ -24,8 +24,15 @@ UPDATE "dhikr_goals" SET "phrase_arabic" = "phrase", "phrase_english" = 'Unknown
 ALTER TABLE "dhikr_goals" DROP COLUMN "phrase";
 
 -- AlterTable for DhikrHistory
--- First, drop the old unique constraint
-ALTER TABLE "dhikr_history" DROP CONSTRAINT "dhikr_history_user_id_phrase_date_key";
+-- First, drop the old unique index. This was originally created as
+-- `CREATE UNIQUE INDEX`, not a table constraint (see
+-- 20260215124943_add_islamic_features/migration.sql), so it must be dropped
+-- with DROP INDEX, not ALTER TABLE ... DROP CONSTRAINT — the latter fails
+-- with "constraint does not exist" (42704) on any database where this
+-- migration hasn't already been patched out-of-band, which is every fresh
+-- database replay (this blocked shadow-db validation and a from-scratch
+-- Neon migration on 2026-08-30).
+DROP INDEX "dhikr_history_user_id_phrase_date_key";
 
 -- Add new columns
 ALTER TABLE "dhikr_history" ADD COLUMN "phrase_arabic" TEXT NOT NULL DEFAULT '',
