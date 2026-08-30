@@ -432,6 +432,48 @@ export class AuthService {
   }
 
   /**
+   * Request a password reset — sends an OTP if the email belongs to an
+   * account. Always returns the same generic message regardless of whether
+   * the account exists, so this endpoint can't be used to enumerate
+   * registered emails; only the actual sending is conditional.
+   */
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      await this.otpService.requestOtp(email, 'password_reset');
+    }
+
+    return {
+      message: 'If an account with that email exists, a password reset code has been sent.',
+    };
+  }
+
+  /**
+   * Complete a password reset: verify the OTP, set the new password, and
+   * revoke every existing session — a changed password should force
+   * re-login everywhere, the same as a security-sensitive account change.
+   */
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+    await this.otpService.verifyOtp(email, otp);
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    await this.tokenService.revokeAllUserTokens(user.id);
+
+    return { message: 'Password reset successfully. Please log in with your new password.' };
+  }
+
+  /**
    * Get user permissions for a user ID
    */
   async getUserPermissions(userId: string): Promise<string[]> {

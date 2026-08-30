@@ -12,6 +12,7 @@ import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { Public } from '../decorators/public.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../decorators/current-user.decorator';
@@ -52,6 +53,22 @@ export class AuthController {
     };
 
     return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp, deviceInfo);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body() requestOtpDto: RequestOtpDto) {
+    return this.authService.forgotPassword(requestOtpDto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.email,
+      resetPasswordDto.otp,
+      resetPasswordDto.newPassword,
+    );
   }
 
   @Public()

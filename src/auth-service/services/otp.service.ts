@@ -32,7 +32,10 @@ export class OtpService {
   /**
    * Request OTP - generates and sends OTP to user
    */
-  async requestOtp(email: string): Promise<{ message: string; expiresIn: number }> {
+  async requestOtp(
+    email: string,
+    purpose: 'login' | 'password_reset' = 'login',
+  ): Promise<{ message: string; expiresIn: number }> {
     // Check rate limiting
     await this.checkRateLimit(email);
 
@@ -67,7 +70,11 @@ export class OtpService {
     });
 
     // Send OTP via email
-    await this.emailService.sendOtpEmail(email, otp);
+    if (purpose === 'password_reset') {
+      await this.emailService.sendPasswordResetOtpEmail(email, otp);
+    } else {
+      await this.emailService.sendOtpEmail(email, otp);
+    }
 
     return {
       message: 'OTP sent successfully',
