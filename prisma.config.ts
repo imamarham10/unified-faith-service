@@ -11,9 +11,14 @@ export default defineConfig({
   datasource: {
     // CLI-only (migrate, generate, studio) — the running app never reads this
     // config file; PrismaService builds its own pg.Pool from DATABASE_URL
-    // directly. Migrations need Neon's DIRECT (non-pooled) connection —
-    // PgBouncer's transaction-mode pooling doesn't support the session-level
-    // operations `prisma migrate` relies on.
-    url: process.env["DATABASE_URL_UNPOOLED"],
+    // directly.
+    //
+    // The UNPOOLED/pooled split existed for Neon, whose PgBouncer endpoint
+    // couldn't serve the session-level operations `prisma migrate` relies on.
+    // On RDS there is no pooler and both vars hold the same URL, so the
+    // fallback keeps the CLI working anywhere only DATABASE_URL is set.
+    // The CLI does parse `?schema=faith` out of the URL on its own — unlike
+    // node-postgres, which is why src/common/utils/db-schema.ts exists.
+    url: process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"],
   },
 });

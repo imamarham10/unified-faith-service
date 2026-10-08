@@ -15,9 +15,11 @@ export class AppService {
   }
 
   async checkHealth() {
-    // A real DB round-trip, not a static response — this is what a keep-warm
-    // ping needs to hit, since Neon's compute suspends independent of
-    // whether the Vercel function itself is warm.
+    // A real DB round-trip, not a static response, so the keep-warm ping
+    // exercises the connection pool and not just the Vercel function. This
+    // originally existed because Neon's compute auto-suspended on its own;
+    // RDS is provisioned and never suspends, but the round-trip is still
+    // what makes this endpoint a meaningful health check.
     await this.prisma.$queryRaw`SELECT 1`;
     return { status: 'ok' };
   }

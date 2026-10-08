@@ -1,11 +1,15 @@
-name: Keep Neon DB warm
+name: Keep API warm
 
 # Pings /health (a real DB round-trip, not a static route) every 5 minutes
-# during 6am-midnight IST, so Neon's compute doesn't hit its 5-minute
-# auto-suspend idle timeout during real usage hours. Deliberately NOT 24/7 —
-# at Neon's 0.25 CU autoscale floor, always-on would burn ~180 CU-hours/month
-# against the free tier's 100 CU-hour budget. Letting it sleep overnight
-# (when there's no real traffic anyway) keeps this within the free tier.
+# during 6am-midnight IST, so the Vercel function and its connection pool
+# stay warm through real usage hours.
+#
+# This was written for Neon, whose compute auto-suspended after 5 minutes
+# idle; the database moved to RDS on 2026-10-08 and a provisioned instance
+# never suspends, so that half of the rationale is gone. What remains is the
+# Vercel lambda cold start, which is why the schedule is unchanged. Still
+# deliberately NOT 24/7 — there is no real traffic overnight, and the old
+# Neon free-tier CU budget is no longer what caps it.
 #
 # Cron is in UTC; IST is UTC+5:30, so 6:00am-midnight IST = 00:30-18:30 UTC.
 # Split into 3 entries to express that half-hour offset in POSIX cron:
