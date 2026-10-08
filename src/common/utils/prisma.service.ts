@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/commo
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { prismaSchemaOptions } from './db-schema';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -27,19 +28,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (databaseUrl.startsWith('prisma+')) {
       superOptions = { accelerateUrl: databaseUrl };
     } else {
-      // MIGRATED (2026-08-30): DATABASE_URL now points at Neon (project
-      // "Siraat", shiny-wind-30761445), not Aiven, via its POOLED (-pooler)
-      // endpoint — Neon's PgBouncer sits in front of this pool and
-      // multiplexes up to ~10,000 app-level connections, which is why this
-      // number is safe to raise again after today's Aiven "too many
-      // connections" incidents (root cause there: no pooler at all on
-      // Aiven's Free/Developer tiers, only per-instance pool limits directly
-      // against Postgres). Verified locally: 20 concurrent Gita/chapter
-      // requests + interleaved login calls, all 200/401, zero failures.
-      // max:10 is a deliberate step up from the old max:3, not a return to
-      // the earlier max:8 guess — reassess with real traffic data before
-      // going higher. Migrations/dumps must use DATABASE_URL_UNPOOLED (the
-      // direct, non-pooled endpoint) — see prisma.config.ts.
+      // MIGRATED (2026-10-08): DATABASE_URL now points at the habuild-dev RDS
+      // instance (database "utility", schema "faith"), not Neon. RDS has no
+      // PgBouncer in front of it, so unlike the Neon -pooler endpoint this
+      // max:10 is 10 real backend connections — but max_connections there is
+      // 800 with ~46 in use, so there is ample headroom. DATABASE_URL and
+      // DATABASE_URL_UNPOOLED are now the same host; the split is kept only
+      // because prisma.config.ts still reads the UNPOOLED one.
+      // Prior history: Neon (2026-08-30) after Aiven "too many connections"
+      // incidents, where the root cause was no pooler at all on Aiven's
+      // Free/Developer tiers, only per-instance limits directly against
+      // Postgres. max:10 was a deliberate step up from the old max:3 —
+      // reassess with real traffic data before going higher.
       // idleTimeoutMillis releases idle clients quickly between hot-reloads.
       pgPool = new Pool({
         connectionString: databaseUrl,
@@ -48,7 +48,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 5000,
       });
-      superOptions = { adapter: new PrismaPg(pgPool) };
+      // The tables live in the "faith" schema — see db-schema.ts for why this
+      // can't ride along in the connection string.
+      superOptions = {
+        adapter: new PrismaPg(pgPool, prismaSchemaOptions(databaseUrl)),
+      };
     }
 
     super(superOptions);

@@ -4,6 +4,7 @@ dist
 /generated/prisma
 
 .env
+.env.bak.*
 
 ../opentaqwa
 
