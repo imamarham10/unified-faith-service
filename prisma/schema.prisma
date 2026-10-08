@@ -1163,3 +1163,114 @@ model Feedback {
   @@index([createdAt])
   @@map("feedback")
 }
+
+// ============================================
+// Retention Engine — Activity Tracking (faith-agnostic)
+// ============================================
+//
+// The engine is event-sourced. `activity_events` is the only source of truth;
+// `daily_rollups` and `streak_states` are caches that may be deleted and
+// rebuilt by replaying the event stream. The contract these four tables serve
+// is frozen in docs/contracts/activity-api.md -- read it before changing
+// anything here.
+//
+// No foreign key to `users`: this follows DhikrCounter and the rest of the
+// faith tables, which carry a bare `user_id` with no relation. Adding one
+// would require a back-relation field on User.
+
+/// Append-only, immutable. One row per in-app act of worship.
+///
+/// `local_day` -- not `occurred_at` -- is what streaks count: the device
+/// stamps the day the user believed it was, plus the IANA zone it believed it
+/// was in, at the moment of the act (contract §2.1, §2.2).
+model ActivityEvent {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  faithId       String   @map("faith_id") // islam | hindu
+  activityType  String   @map("activity_type") // quran_verse | prayer | dhikr | gita_shloka | sandhya | japa_mala
+  quantity      Int      @default(1)
+  occurredAt    DateTime @map("occurred_at") // the real instant, stored UTC
+  localDay      DateTime @map("local_day") @db.Date // the user's day -- what streaks count
+  timezone      String // IANA zone name, e.g. Asia/Kolkata. Stored, never used to validate local_day.
+  sourceRef     String?  @map("source_ref") // "quran:2:148", "prayer:fajr"; load-bearing from Phase 2
+  clientEventId String   @map("client_event_id") // UUID v4 minted on the device
+  createdAt     DateTime @default(now()) @map("created_at") // server receipt; never exposed
+
+  /// Idempotency (contract §4.3). First write wins: a replayed batch is free,
+  /// and a re-sent clientEventId with a different payload does not overwrite.
+  @@unique([userId, clientEventId])
+  /// Serves /today counts and /history ranges. faith_id is in the key because
+  /// every read in the contract is faith-scoped and a user may hold both.
+  @@index([userId, faithId, localDay])
+  /// Serves goal progress: SUM(quantity) for one activity type on one day.
+  @@index([userId, faithId, activityType, localDay])
+  @@map("activity_events")
+}
+
+/// Cache of a closed day, written by the nightly rollup (Task 1.7).
+/// Deletable: every row is recomputable from `activity_events` plus the
+/// `user_goals` row in force on `local_day`. Any day not yet persisted here is
+/// computed on read and returned identically (contract §2.8).
+model DailyRollup {
+  userId     String   @map("user_id")
+  faithId    String   @map("faith_id")
+  localDay   DateTime @map("local_day") @db.Date
+  counts     Json     @default("{}") // { "quran_verse": 12, "prayer": 5 } -- zero totals are absent keys
+  points     Int      @default(0) // weighting undecided; no Phase 1 response returns it (§2.9)
+  goalMet    Boolean  @default(false) @map("goal_met")
+  computedAt DateTime @default(now()) @updatedAt @map("computed_at")
+
+  @@id([userId, faithId, localDay])
+  @@map("daily_rollups")
+}
+
+/// Cache of the streak projection. Deletable and recomputable, like DailyRollup.
+model StreakState {
+  userId         String    @map("user_id")
+  faithId        String    @map("faith_id")
+  current        Int       @default(0)
+  longest        Int       @default(0) // never decreases
+  lastGoalMetDay DateTime? @map("last_goal_met_day") @db.Date // null if never
+  freezesLeft    Int       @default(2) @map("freezes_left") // 0-2, granted not earned (§2.6)
+  freezeResetOn  DateTime? @map("freeze_reset_on") @db.Date // first day of next month, user's zone
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@id([userId, faithId])
+  @@map("streak_states")
+}
+
+/// Effective-dated and append-only. NOT one mutable current row.
+///
+/// A goal change is not retroactive (contract §7.4): days already closed keep
+/// the `goalMet` they were closed with. A single mutable row cannot express
+/// that -- a replay would recompute every past day against today's target, so
+/// lowering a goal to 1 would retroactively manufacture a streak, and the
+/// Task 1.5 replay-equivalence property would be false by construction.
+///
+/// Semantics: half-open interval [effectiveFrom, effectiveTo). `effectiveTo`
+/// null means "still in force". PUT /goal closes the open row by setting its
+/// effectiveTo to the new row's effectiveFrom and inserts the new row, both in
+/// one transaction. A second PUT on the same local day upserts on the unique
+/// key rather than inserting a second row.
+///
+/// Rollup and replay read the goal in force on day D with:
+///   WHERE user_id = ? AND faith_id = ? AND effective_from <= D
+///   ORDER BY effective_from DESC LIMIT 1
+/// which is total and single-valued whatever `effective_to` holds, so replay
+/// correctness never depends on the bookkeeping column being right.
+model UserGoal {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  faithId       String    @map("faith_id")
+  goalType      String    @map("goal_type") // verses | prayers | dhikr | shlokas | sandhyas | malas
+  target        Int
+  effectiveFrom DateTime  @map("effective_from") @db.Date // a localDay, inclusive
+  effectiveTo   DateTime? @map("effective_to") @db.Date // a localDay, exclusive; null = in force
+  createdAt     DateTime  @default(now()) @map("created_at") // surfaces as `updatedAt` on PUT /goal
+
+  /// The overlap guard, and the whole reason the lookup above is unambiguous:
+  /// two goals for one faith can never start on the same day, so the ORDER BY
+  /// above can never tie. This is the only overlap a correct PUT can produce.
+  @@unique([userId, faithId, effectiveFrom])
+  @@map("user_goals")
+}
