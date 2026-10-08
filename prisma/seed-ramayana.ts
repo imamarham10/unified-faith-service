@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { prismaSchemaOptions } from '../src/common/utils/db-schema';
 import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -28,7 +29,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
   max: 4,
 });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, prismaSchemaOptions());
 const prisma = new PrismaClient({ adapter });
 
 const AUTHOR = 'M.N. Dutt (1891–94, public domain)';

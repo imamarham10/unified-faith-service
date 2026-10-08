@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { prismaSchemaOptions } from '../src/common/utils/db-schema';
 import { Pool } from 'pg';
 import { seedQuranPremium } from './seed-quran-premium';
 import { seedQuranScripts } from './seed-quran-scripts';
@@ -16,7 +17,7 @@ const pool = new Pool({
   connectionString: databaseUrl?.replace('sslmode=require', ''),
   ssl: { rejectUnauthorized: false } 
 });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, prismaSchemaOptions());
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

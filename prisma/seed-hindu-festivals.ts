@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { prismaSchemaOptions } from '../src/common/utils/db-schema';
 import { Pool } from 'pg';
 
 // ── Database setup (mirrors seed-hadiths.ts for Aiven self-signed certs) ─
@@ -14,7 +15,7 @@ const pool = new Pool({
   connectionString: databaseUrl.replace('sslmode=require', ''),
   ssl: { rejectUnauthorized: false },
 });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, prismaSchemaOptions());
 const prisma = new PrismaClient({ adapter });
 
 // ── Types ───────────────────────────────────────────────────────────────

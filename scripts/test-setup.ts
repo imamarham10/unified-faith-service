@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { prismaSchemaOptions } from '../src/common/utils/db-schema';
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,7 +13,7 @@ if (!databaseUrl) {
 }
 
 const pool = new Pool({ connectionString: databaseUrl });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, prismaSchemaOptions());
 const prisma = new PrismaClient({ adapter });
 
 async function setupTestUser() {

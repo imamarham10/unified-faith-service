@@ -1,13 +1,14 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { prismaSchemaOptions } from "../src/common/utils/db-schema";
 import { Pool } from "pg";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) { console.error("DATABASE_URL not set"); process.exit(1); }
 
 const pool = new Pool({ connectionString: databaseUrl.replace("sslmode=require", ""), ssl: { rejectUnauthorized: false } });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, prismaSchemaOptions());
 const prisma = new PrismaClient({ adapter });
 
 const DUAS = [
