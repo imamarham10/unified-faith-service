@@ -125,3 +125,25 @@ export class IngestEventsDto {
   @Allow()
   events?: unknown;
 }
+
+/**
+ * §1.3 — each `goalType` counts exactly one `activityType`. The names differ
+ * deliberately: `goalType` is the unit the user sets a target in and reads in
+ * English (`verses`), `activityType` is what an event records (`quran_verse`).
+ *
+ * This map is the whole of "the one activityType that goalType counts" in
+ * §2.4. A `goalType` absent from it has no counted activity and therefore no
+ * progress, which makes `goalMet` false rather than throwing — a goal row that
+ * predates a deploy must never be able to break a rollup.
+ */
+export const GOAL_TYPE_ACTIVITY: Record<string, string> = {
+  verses: 'quran_verse',
+  prayers: 'prayer',
+  dhikr: 'dhikr',
+  shlokas: 'gita_shloka',
+  sandhyas: 'sandhya',
+  malas: 'japa_mala',
+};
+
+/** §2.6 — the monthly freeze allowance. Granted, not earned; never configurable in Phase 1. */
+export const FREEZES_PER_MONTH = 2;
