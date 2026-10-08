@@ -10,6 +10,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { ActivityController } from './activity.controller';
 import { ActivityService } from '../services/activity.service';
+import { ActivityReadService } from '../services/activity-read.service';
 import {
   ActivityErrorBody,
   ActivityExceptionFilter,
@@ -51,14 +52,73 @@ async function expectRejection(promise: Promise<unknown>): Promise<ActivityError
 describe('ActivityController', () => {
   let controller: ActivityController;
   let service: { ingest: jest.Mock };
+  let reads: { today: jest.Mock; history: jest.Mock; setGoal: jest.Mock };
 
   beforeEach(async () => {
     service = { ingest: jest.fn(async () => ({ accepted: 0, duplicates: 0, rejected: [] })) };
+    reads = {
+      today: jest.fn(async () => ({})),
+      history: jest.fn(async () => ({})),
+      setGoal: jest.fn(async () => ({})),
+    };
     const moduleRef = await Test.createTestingModule({
       controllers: [ActivityController],
-      providers: [{ provide: ActivityService, useValue: service }],
+      providers: [
+        { provide: ActivityService, useValue: service },
+        { provide: ActivityReadService, useValue: reads },
+      ],
     }).compile();
     controller = moduleRef.get(ActivityController);
+  });
+
+  /**
+   * The read routes (Task 1.6) are deliberately thin: every rule in §5.5,
+   * §6.4 and §7.6 carries a stable `code`, and a controller-scoped decorator
+   * could not produce one — `main.ts`'s global ValidationPipe runs first and
+   * throws its own shape. So the routes pass raw query/body values straight
+   * through and `ActivityReadService` raises each code. What is asserted here
+   * is the part the controller really owns: the user comes from the token, and
+   * the body can never choose it.
+   */
+  describe('the read routes pass the token holder through (§5, §6, §7)', () => {
+    it('GET /today forwards faithId, timezone and the optional localDay', async () => {
+      await controller.today(USER, 'islam', 'Asia/Kolkata', '2026-10-08');
+      expect(reads.today).toHaveBeenCalledWith(
+        USER.userId,
+        'islam',
+        'Asia/Kolkata',
+        '2026-10-08',
+      );
+    });
+
+    it('GET /today forwards absent parameters unchanged, so the service can name the code', async () => {
+      await controller.today(USER);
+      expect(reads.today).toHaveBeenCalledWith(USER.userId, undefined, undefined, undefined);
+    });
+
+    it('GET /history forwards faithId, from and to', async () => {
+      await controller.history(USER, 'islam', '2026-10-01', '2026-10-08');
+      expect(reads.history).toHaveBeenCalledWith(
+        USER.userId,
+        'islam',
+        '2026-10-01',
+        '2026-10-08',
+      );
+    });
+
+    it('PUT /goal forwards the body under the token holder, never a body userId', async () => {
+      await controller.setGoal(USER, {
+        faithId: 'islam',
+        goalType: 'verses',
+        target: 5,
+        userId: 'someone-else',
+      } as Record<string, unknown>);
+
+      expect(reads.setGoal).toHaveBeenCalledWith(
+        USER.userId,
+        expect.objectContaining({ faithId: 'islam', goalType: 'verses', target: 5 }),
+      );
+    });
   });
 
   describe('POST /events — the envelope (§4.6)', () => {

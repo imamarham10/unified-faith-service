@@ -1,14 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ActivityController } from './controllers/activity.controller';
 import { ActivityService } from './services/activity.service';
+import { ActivityReadService } from './services/activity-read.service';
 import { RollupService } from './services/rollup.service';
 import { AuthModule } from '../auth-service/modules/auth.module';
 
 /**
- * The retention engine's write path (Task 1.4).
+ * The retention engine's write path (Task 1.4) and read path (Task 1.6).
  *
- * `/today`, `/history` and `/goal` land here in Task 1.6; the rollup cron in
- * Task 1.7. `RollupService` (Task 1.5) is exported because both of those read
+ * `/today`, `/history` and `/goal` are `ActivityReadService`; the rollup cron
+ * lands in Task 1.7. `RollupService` (Task 1.5) is exported because both of those read
  * through it rather than reimplementing the streak rules. AuthModule is imported for JwtAuthGuard and its passport strategy.
  *
  * PrismaService is deliberately NOT re-declared as a provider here. It is
@@ -20,7 +21,7 @@ import { AuthModule } from '../auth-service/modules/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [ActivityController],
-  providers: [ActivityService, RollupService],
-  exports: [ActivityService, RollupService],
+  providers: [ActivityService, ActivityReadService, RollupService],
+  exports: [ActivityService, ActivityReadService, RollupService],
 })
 export class ActivityModule {}

@@ -147,13 +147,25 @@ export class RollupService {
    * not a failure: §7.4 says the streak begins on the first day the user both
    * has a goal and meets it.
    */
-  private async findGoalInForce(
+  /*
+   * Public, deliberately. Task 1.6's `/today` and `PUT /goal` both have to
+   * report `goalType` and `target`, which `computeDailyRollup` does not
+   * return. Exposing this one method is the alternative to a second
+   * `userGoal.findFirst` somewhere else in the module — and a second copy of
+   * the lookup is exactly what the warning above is about, because the copy
+   * would not carry the warning.
+   */
+  async findGoalInForce(
     userId: string,
     faithId: FaithId,
-    day: Date,
+    day: Date | string,
   ): Promise<{ goalType: string; target: number } | null> {
     const goal = await this.prisma.userGoal.findFirst({
-      where: { userId, faithId, effectiveFrom: { lte: day } },
+      where: {
+        userId,
+        faithId,
+        effectiveFrom: { lte: typeof day === 'string' ? toUtcMidnight(day) : day },
+      },
       orderBy: { effectiveFrom: 'desc' },
     });
     return goal ?? null;

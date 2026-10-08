@@ -1,20 +1,28 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Put,
+  Query,
   UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { ActivityService } from '../services/activity.service';
+import { ActivityReadService } from '../services/activity-read.service';
 import {
   BATCH_MAX,
   BATCH_MIN,
+  GoalResponse,
+  HistoryResponse,
   IngestEventsDto,
   IngestResult,
+  SetGoalDto,
+  TodayResponse,
 } from '../dto/activity.dto';
 import {
   ActivityExceptionFilter,
@@ -50,7 +58,10 @@ import {
   }),
 )
 export class ActivityController {
-  constructor(private readonly activityService: ActivityService) {}
+  constructor(
+    private readonly activityService: ActivityService,
+    private readonly readService: ActivityReadService,
+  ) {}
 
   /**
    * POST /api/v1/activity/events — batch, idempotent, partial.
@@ -69,6 +80,64 @@ export class ActivityController {
   ): Promise<IngestResult> {
     const events = this.readEnvelope(body);
     return this.activityService.ingest(user.userId, events);
+  }
+
+  /**
+   * GET /api/v1/activity/today — the whole Today screen in one call (§5).
+   *
+   * `timezone` is required and the server echoes the `localDay` it derives
+   * from it (§5.2). Without it the server would have to answer "what day is
+   * it?" from its own UTC clock, and a user in Asia/Kolkata at 02:00 IST would
+   * be shown yesterday's card, yesterday's counts and a streak that looks
+   * broken.
+   *
+   * Query parameters are taken one at a time rather than through a DTO: the
+   * global ValidationPipe in `main.ts` runs before this controller's and would
+   * throw its own shape for any constraint decorator, costing the frozen
+   * `code` a client branches on. Validation lives in the service, where every
+   * code in §5.5 is raised explicitly.
+   */
+  @Get('today')
+  async today(
+    @CurrentUser() user: CurrentUserData,
+    @Query('faithId') faithId?: string,
+    @Query('timezone') timezone?: string,
+    @Query('localDay') localDay?: string,
+  ): Promise<TodayResponse> {
+    return this.readService.today(user.userId, faithId, timezone, localDay);
+  }
+
+  /**
+   * GET /api/v1/activity/history — one row per day, dense over [from, to] (§6).
+   *
+   * No `timezone`: `from` and `to` are already explicit local days (§6.1).
+   * Over 92 days is `400 range_too_large`, never a silent truncation (§6.2).
+   */
+  @Get('history')
+  async history(
+    @CurrentUser() user: CurrentUserData,
+    @Query('faithId') faithId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<HistoryResponse> {
+    return this.readService.history(user.userId, faithId, from, to);
+  }
+
+  /**
+   * PUT /api/v1/activity/goal — set or replace the daily goal (§7).
+   *
+   * 200 for both a first-time set and a replacement; `PUT` is an upsert of the
+   * single goal per (user, faith) and the client does not distinguish them
+   * (§7.3). The response re-evaluates today against the new goal, so no
+   * follow-up `GET /today` is needed.
+   */
+  @Put('goal')
+  @HttpCode(HttpStatus.OK)
+  async setGoal(
+    @CurrentUser() user: CurrentUserData,
+    @Body() body: SetGoalDto,
+  ): Promise<GoalResponse> {
+    return this.readService.setGoal(user.userId, body);
   }
 
   /**

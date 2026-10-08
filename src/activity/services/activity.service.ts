@@ -5,7 +5,6 @@ import {
   CALENDAR_DATE,
   FAITH_IDS,
   FaithId,
-  IANA_ZONE_SHAPE,
   IngestResult,
   LOCAL_DAY_SLACK_MS,
   NormalisedEvent,
@@ -17,6 +16,8 @@ import {
   RejectedEvent,
   RejectionCode,
   SOURCE_REF_MAX_LENGTH,
+  isIanaZone,
+  isRealCalendarDate,
 } from '../dto/activity.dto';
 
 /** A per-event verdict: either a row to write, or a reason it will never work. */
@@ -311,29 +312,6 @@ function readClientEventId(raw: unknown): string | null {
 function startOfUtcDay(ms: number): number {
   const d = new Date(ms);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-}
-
-/** Rejects 2026-02-31 and friends, which the regex alone would let through. */
-function isRealCalendarDate(value: string): boolean {
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-/**
- * The shape check is not redundant: recent Node accepts offset strings such as
- * `+05:30` in `Intl.DateTimeFormat`, and §1.5 forbids those. `Intl` is then
- * asked whether the zone really exists — rather than
- * `Intl.supportedValuesOf('timeZone')`, which omits aliases like
- * `Asia/Calcutta` that millions of devices still report.
- */
-function isIanaZone(value: string): boolean {
-  if (!IANA_ZONE_SHAPE.test(value)) return false;
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function describe(value: unknown): string {
