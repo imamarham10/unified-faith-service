@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/utils/prisma.service';
-import { FaithId, FREEZES_PER_MONTH, GOAL_TYPE_ACTIVITY } from '../dto/activity.dto';
+import {
+  FaithId,
+  FREEZES_PER_MONTH,
+  GOAL_TYPE_ACTIVITY,
+  LOCAL_DAY_OVERRIDE_SLACK_DAYS,
+  LOCAL_DAY_SLACK_MS,
+  OCCURRED_AT_MAX_AGE_MS,
+} from '../dto/activity.dto';
 
 /**
  * Task 1.5 — the daily rollup and the streak projection.
@@ -59,6 +66,60 @@ export interface StreakSnapshot {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How far back a **read** rebuilds before it stops rewriting rows that cannot
+ * have changed. `rebuildRecent` uses it; `rebuildAll` does not.
+ *
+ * ## Why a bound exists at all
+ *
+ * `rebuildAll` upserts every day from the user's first event through today.
+ * On `GET /today` — the app's primary screen, on a serverless function
+ * against a small pg pool — a two-year-old account is ~730 sequential upserts
+ * per load, and 729 of them rewrite a row to the value it already held.
+ *
+ * ## Why a day outside the window cannot change
+ *
+ * A computed day's value is a function of exactly two things: the events
+ * stamped with that `localDay`, and the `UserGoal` row in force on it.
+ *
+ *  - **Events.** §2.3 rejects an `occurredAt` more than 90 days before server
+ *    receipt, and §2.2 allows `localDay` to sit at most one day either side of
+ *    that instant's UTC date. So the oldest `localDay` any future ingest can
+ *    ever produce is 91 days before the day it is received on.
+ *  - **Goals.** §7.4 makes a goal change effective from the user's *current*
+ *    `localDay` forward and never earlier, so no `PUT /goal` can alter the
+ *    goal in force on a day already behind the anchor.
+ *
+ * The two remaining terms convert "days before server receipt" into "days
+ * before the anchor `/today` passes in", which is a *local* day: it may lead
+ * the server's UTC date by one (§5.2), and §5.1 lets the client move it one
+ * further back. 90 + 1 + 1 + 1 = 93, written below as that sum so the
+ * derivation survives a change to any of its terms rather than rotting into a
+ * literal. For scale, §6.2 already lets `/history` rebuild a 92-day window
+ * (`HISTORY_MAX_DAYS`) on demand, so this is not a new order of work.
+ *
+ * ## What this does NOT weaken
+ *
+ * `projectStreak` reads **every** persisted rollup with no date filter, so
+ * days outside the window keep contributing their met-days exactly as before.
+ * They merely stop being rewritten. The streak is unchanged — asserted
+ * directly over a 200-day run in `rollup.service.spec.ts`.
+ *
+ * ## What it does narrow — read this before deleting `daily_rollups`
+ *
+ * Recovery from an **emptied** `daily_rollups` table must go through
+ * `rebuildAll` (or the cron with a large `lookbackDays`), never through a
+ * `/today` load. A `/today` load on a cold table now restores only the
+ * trailing window, so a 400-day streak would come back as 93. That is the one
+ * property this bound costs, and `rebuildAll` is kept — unbounded, tested by
+ * the replay spec — precisely so the cost is recoverable rather than paid.
+ */
+export const TODAY_REBUILD_WINDOW_DAYS =
+  OCCURRED_AT_MAX_AGE_MS / DAY_MS + // §2.3 — the oldest occurredAt ingest accepts
+  LOCAL_DAY_SLACK_MS / DAY_MS + //    §2.2 — localDay may sit a day below it
+  1 + //                              §5.2 — the user's localDay may lead UTC
+  LOCAL_DAY_OVERRIDE_SLACK_DAYS; //   §5.1 — the client may move the anchor back
 
 @Injectable()
 export class RollupService {
@@ -226,19 +287,65 @@ export class RollupService {
    * `today`, then reproject the streak. This is the replay entry point: it
    * reads only `activity_events` and `user_goals`, so it is correct against an
    * empty `daily_rollups` table and idempotent against a full one.
+   *
+   * Deliberately unbounded, and deliberately **not** what `GET /today` calls —
+   * see `rebuildRecent`. Keeping this one whole is what makes the bound on the
+   * read path recoverable: drop `daily_rollups` and this restores it exactly,
+   * which is the property the replay spec asserts and the reason the engine
+   * stores events rather than counters.
    */
   async rebuildAll(
     userId: string,
     faithId: FaithId,
     today: string,
   ): Promise<StreakSnapshot> {
+    return this.rebuildSince(userId, faithId, today, null);
+  }
+
+  /**
+   * `rebuildAll`, floored at `today - windowDays`: the read path's version.
+   *
+   * Identical in every respect but where the rebuild starts. Days older than
+   * the floor are not recomputed, because nothing can change them — see
+   * `TODAY_REBUILD_WINDOW_DAYS` for the derivation — and `projectStreak` reads
+   * all persisted rollups regardless of the window, so their met-days still
+   * count toward the streak.
+   *
+   * This is what `GET /today` calls, and it is **not** a recovery path:
+   * rebuilding an emptied `daily_rollups` table needs `rebuildAll`, which is
+   * kept unbounded for exactly that.
+   */
+  async rebuildRecent(
+    userId: string,
+    faithId: FaithId,
+    today: string,
+    windowDays: number = TODAY_REBUILD_WINDOW_DAYS,
+  ): Promise<StreakSnapshot> {
+    return this.rebuildSince(userId, faithId, today, addDays(today, -windowDays));
+  }
+
+  /**
+   * The body both entry points share: rebuild `[max(firstEventDay, floor),
+   * today]` and project. `floor` of `null` means "no floor" — the user's whole
+   * history.
+   */
+  private async rebuildSince(
+    userId: string,
+    faithId: FaithId,
+    today: string,
+    floor: string | null,
+  ): Promise<StreakSnapshot> {
+    // Still consulted when a floor is set, so a user who joined last week gets
+    // one row rather than a window's worth of empty days. §6.3's density
+    // requirement is `/history`'s, and `history()` rebuilds its own range.
     const first = await this.prisma.activityEvent.findFirst({
       where: { userId, faithId },
       orderBy: { localDay: 'asc' },
     });
 
     if (first) {
-      const from = toDayKey(first.localDay);
+      const firstDay = toDayKey(first.localDay);
+      const from = floor && floor > firstDay ? floor : firstDay;
       // A user whose only events are stamped in the future (clock tampering is
       // accepted per §2.2) must not make this loop run backwards forever.
       if (from <= today) await this.rebuildRange(userId, faithId, from, today);

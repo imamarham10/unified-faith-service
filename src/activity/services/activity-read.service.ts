@@ -91,11 +91,24 @@ export class ActivityReadService {
    * unpersisted and requires it be computed on read), and ingest writes no
    * rollups at all — it only appends events. So a bare `projectStreak` would
    * miss today entirely: a user who met their goal an hour ago would be shown
-   * yesterday's streak. `rebuildAll` recomputes every day from the user's
-   * first event through today and *then* projects, which is why it is the
-   * entry point here rather than `projectStreak`.
+   * yesterday's streak. The rebuild recomputes the days that could have
+   * changed and *then* projects, which is why it is the entry point here
+   * rather than `projectStreak`.
    *
-   * Front-sparseness (`rebuildAll` starting at the first event day rather than
+   * ### Why `rebuildRecent` and not `rebuildAll`
+   *
+   * `rebuildAll` upserts every day from the user's first event onward, so this
+   * screen — the app's primary one — cost a two-year-old account ~730
+   * sequential upserts per load, every one of which rewrote a row to the value
+   * it already held. `rebuildRecent` floors that at
+   * `TODAY_REBUILD_WINDOW_DAYS`, which is derived from the ingest horizon
+   * (§2.3) and the two `localDay` slacks (§2.2, §5.1) so that no day it skips
+   * is one any future write could change. The streak is untouched:
+   * `projectStreak` reads all persisted rollups with no date filter, so older
+   * days keep contributing their met-days. Recovery from an emptied
+   * `daily_rollups` table is therefore `rebuildAll`'s job, not this screen's.
+   *
+   * Front-sparseness (the rebuild starting at the first event day rather than
    * at the dawn of time) is harmless for the streak and matters only for
    * `/history`: a day with no events can never be a goal-met day, and
    * `computeStreak`'s forward scan never examines a gap before the first
@@ -116,7 +129,7 @@ export class ActivityReadService {
     const derived = localDayIn(timezone, this.now());
     const localDay = this.resolveLocalDayOverride(localDayRaw, derived);
 
-    const streak = await this.rollups.rebuildAll(userId, faithId, localDay);
+    const streak = await this.rollups.rebuildRecent(userId, faithId, localDay);
     const day = await this.rollups.computeDailyRollup(userId, faithId, localDay);
     const goal = await this.buildGoal(userId, faithId, localDay, day.counts);
 

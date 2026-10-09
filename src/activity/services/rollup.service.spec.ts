@@ -1,6 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../../common/utils/prisma.service';
-import { RollupService, computeStreak } from './rollup.service';
+import {
+  RollupService,
+  TODAY_REBUILD_WINDOW_DAYS,
+  addDays,
+  computeStreak,
+} from './rollup.service';
 
 /**
  * Unit specs for the daily rollup and the streak projection (contract §2.4–§2.8).
@@ -617,6 +622,110 @@ describe('RollupService', () => {
       expect(second).toEqual(first);
       expect(prisma.dailyRollups.length).toBe(rowCount);
       expect(prisma.streakStates.length).toBe(1);
+    });
+  });
+
+  // ================================================ the bounded read rebuild
+
+  describe('bounded rebuild on the read path', () => {
+    // `GET /today` calls `rebuildRecent`, not `rebuildAll`. These specs pin the
+    // two halves of that trade: the streak must be bit-identical across the
+    // bound, and the write count must actually fall. A streak assertion alone
+    // would pass just as happily if the bound did nothing.
+    const WINDOW = TODAY_REBUILD_WINDOW_DAYS;
+    const TODAY = '2026-10-08';
+    const SPAN = 200; // > 2 x WINDOW, so the bound has to bite
+
+    /** `daily_rollups` as a comparable snapshot, newest-last. */
+    const rollupRows = async () =>
+      (
+        await prisma.dailyRollup.findMany({
+          where: { userId: USER, faithId: ISLAM },
+          orderBy: { localDay: 'asc' },
+        })
+      ).map(({ computedAt, ...rest }) => rest);
+
+    /** `SPAN` consecutive goal-met days ending on `TODAY`. */
+    function seedLongRun() {
+      const first = addDays(TODAY, -(SPAN - 1));
+      addGoal({ target: 5, effectiveFrom: first });
+      const days: string[] = [];
+      for (let day = first; day <= TODAY; day = addDays(day, 1)) days.push(day);
+      expect(days.length).toBe(SPAN);
+      metOn(days);
+      return first;
+    }
+
+    it('derives the window from the ingest horizon and the two localDay slacks', () => {
+      // 90 (§2.3) + 1 (§2.2) + 1 (§5.2) + 1 (§5.1). If any of those contract
+      // numbers moves, the constant must move with it rather than silently
+      // becoming too small — which is why it is written as that sum.
+      expect(WINDOW).toBe(93);
+      // The guarantee in one line: the oldest localDay a future ingest can
+      // produce is 91 days before the day it lands on, and the anchor can sit
+      // two days from that day. Nothing the bound skips is reachable.
+      expect(WINDOW).toBeGreaterThanOrEqual(90 + 1 + 1 + 1);
+    });
+
+    it('leaves the streak identical across a span far longer than the window', async () => {
+      seedLongRun();
+
+      // The accumulated production state: every day this user has ever had is
+      // persisted, which is what daily `/today` loads and the nightly cron
+      // produce in the real system.
+      const unbounded = await service.rebuildAll(USER, ISLAM, TODAY);
+      expect(unbounded.current).toBe(SPAN);
+      expect(unbounded.longest).toBe(SPAN);
+      const unboundedRows = await rollupRows();
+      expect(unboundedRows.length).toBe(SPAN);
+
+      prisma.dailyRollup.upsert.mockClear();
+      const bounded = await service.rebuildRecent(USER, ISLAM, TODAY);
+
+      // THE assertion: the streak does not change. `projectStreak` has no date
+      // filter, so the 106 days outside the window keep contributing their
+      // met-days; they simply stop being rewritten.
+      expect(bounded).toEqual(unbounded);
+      // And the rows are untouched, not merely the projection over them.
+      expect(await rollupRows()).toEqual(unboundedRows);
+
+      // The half that proves the bound bit at all.
+      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(WINDOW + 1);
+      expect(prisma.dailyRollup.upsert.mock.calls.length).toBeLessThan(SPAN);
+    });
+
+    it('still writes only the days a short-history user has, not a whole window', async () => {
+      // Front-sparseness survives the floor: the first-event lookup still wins
+      // when it is later than the floor, so a user who joined yesterday gets
+      // two rows rather than 94 empty ones.
+      addGoal({ target: 5, effectiveFrom: '2026-10-07' });
+      metOn(['2026-10-07', '2026-10-08']);
+
+      prisma.dailyRollup.upsert.mockClear();
+      const bounded = await service.rebuildRecent(USER, ISLAM, TODAY);
+
+      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(2);
+      expect(bounded.current).toBe(2);
+      expect(await rollupRows()).toHaveLength(2);
+    });
+
+    it('recovers an emptied rollup table through rebuildAll, not through the read path', async () => {
+      // The one property the bound costs, asserted rather than left implicit:
+      // `daily_rollups` is advertised as droppable, and after this change a
+      // `/today` load on a cold table restores only the window. Recovery is
+      // `rebuildAll`'s job — which is why it is kept unbounded.
+      seedLongRun();
+      expect((await service.rebuildAll(USER, ISLAM, TODAY)).current).toBe(SPAN);
+
+      await prisma.dailyRollup.deleteMany({ where: {} });
+      const cold = await service.rebuildRecent(USER, ISLAM, TODAY);
+      expect(cold.current).toBe(WINDOW + 1);
+      // §2.5 — `longest` never decreases, so the record survives even this.
+      expect(cold.longest).toBe(SPAN);
+
+      const recovered = await service.rebuildAll(USER, ISLAM, TODAY);
+      expect(recovered.current).toBe(SPAN);
+      expect(await rollupRows()).toHaveLength(SPAN);
     });
   });
 });
