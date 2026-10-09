@@ -1204,6 +1204,18 @@ model ActivityEvent {
   @@index([userId, faithId, localDay])
   /// Serves goal progress: SUM(quantity) for one activity type on one day.
   @@index([userId, faithId, activityType, localDay])
+  /// Serves "this user's most recent event", which the nightly rollup runs
+  /// twice per (user, faith) pair and `PUT /goal` runs once per call:
+  ///   WHERE user_id = ? ORDER BY occurred_at DESC LIMIT 1
+  /// The three keys above are all faith-scoped and all sort on `local_day`, so
+  /// none of them can serve that sort -- without this index the query is a
+  /// filter-then-sort over the user's entire event history. Ascending, not
+  /// `sort: Desc`: `user_id` is an equality predicate rather than a sort key,
+  /// so there is no mixed-direction sort to express, and Postgres walks a btree
+  /// backwards for `ORDER BY ... DESC LIMIT 1` at no cost. Deliberately NOT
+  /// faith-scoped -- both call sites ask which zone the person is in, which is
+  /// a fact about where they are standing, not about a content pack.
+  @@index([userId, occurredAt])
   @@map("activity_events")
 }
 

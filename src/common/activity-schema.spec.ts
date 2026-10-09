@@ -32,6 +32,22 @@ const MIGRATION_SQL = readFileSync(
   'utf8',
 );
 
+/**
+ * The follow-up migration that indexes `activity_events` by `(user_id,
+ * occurred_at)`. Read as its own file rather than folded into the one above:
+ * each migration is applied to the live database on its own, so each one is
+ * audited on its own, and the additive-only guards below are duplicated
+ * deliberately so that a later migration cannot inherit an earlier one's
+ * clean bill of health.
+ */
+const OCCURRED_AT_MIGRATION = readdirSync(MIGRATION_DIR).filter((d) =>
+  d.endsWith('_add_activity_event_occurred_at_index'),
+);
+const OCCURRED_AT_SQL = readFileSync(
+  join(MIGRATION_DIR, OCCURRED_AT_MIGRATION[0], 'migration.sql'),
+  'utf8',
+);
+
 /** The body of one `model X { ... }` block, or undefined if absent. */
 function modelBlock(name: string): string | undefined {
   const match = SCHEMA.match(new RegExp(`\\nmodel ${name} \\{([\\s\\S]*?)\\n\\}`));
@@ -40,6 +56,7 @@ function modelBlock(name: string): string | undefined {
 
 /** Collapse runs of whitespace so SQL can be matched without minding layout. */
 const sql = MIGRATION_SQL.replace(/\s+/g, ' ');
+const occurredAtSql = OCCURRED_AT_SQL.replace(/\s+/g, ' ');
 
 describe('activity engine schema', () => {
   it('ships exactly one add_activity_engine migration', () => {
@@ -159,6 +176,42 @@ describe('activity engine schema', () => {
       );
     });
 
+    it('indexes (userId, occurredAt) for "this user\'s most recent event"', () => {
+      // `RollupCronService.rollUpPair` runs
+      //   findFirst({ where: {userId}, orderBy: {occurredAt: 'desc'} })
+      // twice per (user, faith) pair, and `resolveGoalTimezone` runs the
+      // identical query on the read path. Every other index on the table is
+      // faith-scoped and sorts on `local_day`, so none of them can serve that
+      // sort: without this one the query is a filter-then-sort over the whole
+      // of the user's history.
+      expect(modelBlock('ActivityEvent')).toMatch(/@@index\(\[userId, occurredAt\]\)/);
+      expect(occurredAtSql).toContain(
+        'CREATE INDEX "activity_events_user_id_occurred_at_idx" ON "activity_events"("user_id", "occurred_at")',
+      );
+    });
+
+    it('does not sort that index descending', () => {
+      // `user_id` is an equality predicate, not a sort key, so there is no
+      // mixed-direction sort for the planner to fail on and Postgres walks the
+      // btree backwards for `ORDER BY occurred_at DESC LIMIT 1` at no cost.
+      // `sort: Desc` would buy nothing and would cost the ascending scans.
+      expect(modelBlock('ActivityEvent')).not.toMatch(/occurredAt\(sort:/);
+      expect(occurredAtSql).not.toMatch(/"occurred_at" DESC/i);
+    });
+
+    it('leaves the three original indexes in place — nothing is made redundant', () => {
+      // None of them contains or is contained by the new one:
+      // [userId, faithId, localDay] and [userId, faithId, activityType,
+      // localDay] are faith-scoped and sort on a different column, and
+      // [userId, clientEventId] is the unique key doing idempotency work.
+      // Stated as a test so that "report, do not drop" cannot quietly decay
+      // into a drop in a later cleanup.
+      const block = modelBlock('ActivityEvent');
+      expect(block).toMatch(/@@unique\(\[userId, clientEventId\]\)/);
+      expect(block).toMatch(/@@index\(\[userId, faithId, localDay\]\)/);
+      expect(block).toMatch(/@@index\(\[userId, faithId, activityType, localDay\]\)/);
+    });
+
     it('keys DailyRollup and StreakState for the backwards streak walk', () => {
       expect(sql).toContain(
         'CONSTRAINT "daily_rollups_pkey" PRIMARY KEY ("user_id","faith_id","local_day")',
@@ -251,6 +304,53 @@ describe('activity engine schema', () => {
       // A relation to User would need a back-relation field on the User model,
       // which Task 1.3 may not modify.
       expect(MIGRATION_SQL).not.toMatch(/FOREIGN KEY/i);
+    });
+  });
+
+  describe('the occurred_at index migration is purely additive', () => {
+    // Same standing guard as above, applied to the second migration. It runs
+    // against the same shared RDS instance holding live user data, and it is
+    // the one that touches a table that already exists — so "additive" here
+    // means "adds an index and does nothing else at all".
+    const statements = OCCURRED_AT_SQL.split(';')
+      .map((s) => s.replace(/^\s*(--[^\n]*\n)*/, '').trim())
+      .filter(Boolean);
+
+    it('ships exactly one such migration', () => {
+      expect(OCCURRED_AT_MIGRATION).toHaveLength(1);
+    });
+
+    it('is a single CREATE INDEX and nothing else', () => {
+      expect(statements).toHaveLength(1);
+      expect(statements[0]).toMatch(/^CREATE INDEX\b/i);
+    });
+
+    it('contains no DROP, ALTER, RENAME or TRUNCATE', () => {
+      expect(OCCURRED_AT_SQL).not.toMatch(/\bDROP\b/i);
+      expect(OCCURRED_AT_SQL).not.toMatch(/\bALTER\b/i);
+      expect(OCCURRED_AT_SQL).not.toMatch(/\bRENAME\b/i);
+      expect(OCCURRED_AT_SQL).not.toMatch(/\bTRUNCATE\b/i);
+    });
+
+    it('creates no table and targets only activity_events', () => {
+      expect(OCCURRED_AT_SQL).not.toMatch(/CREATE TABLE/i);
+      const targeted = [...OCCURRED_AT_SQL.matchAll(/ON "([^"]+)"/g)].map((m) => m[1]);
+      expect([...new Set(targeted)]).toEqual(['activity_events']);
+    });
+
+    it('names the table unqualified, as the engine migration does', () => {
+      // A schema-qualified `"faith"."activity_events"` here where the migration
+      // that created the table used a bare name would mean the two were
+      // generated against different assumptions, and is worth stopping on.
+      expect(OCCURRED_AT_SQL).not.toContain('"faith".');
+      expect(MIGRATION_SQL).not.toContain('"faith".');
+    });
+
+    it('adds no unique constraint — an index, not a new invariant', () => {
+      // A UNIQUE index on (user_id, occurred_at) would reject two events
+      // recorded in the same millisecond, which a tasbih counter produces
+      // routinely.
+      expect(OCCURRED_AT_SQL).not.toMatch(/UNIQUE/i);
     });
   });
 
