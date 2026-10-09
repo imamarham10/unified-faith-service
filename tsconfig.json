@@ -18,5 +18,5 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
   },
-  "exclude": ["e2e-tests"]
+  "exclude": ["e2e-tests", "**/*.spec.ts"]
 }
