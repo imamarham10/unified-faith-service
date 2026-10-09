@@ -10,6 +10,7 @@ import { FaithModule } from './faiths/faith.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PrismaModule } from './common/prisma.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     FaithModule,
     SubscriptionsModule,
     FeedbackModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

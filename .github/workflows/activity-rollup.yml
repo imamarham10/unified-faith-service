@@ -1,0 +1,130 @@
+name: Nightly activity rollup
+
+# Finalises every retention-engine day that has closed and refreshes streak
+# state (contract docs/contracts/activity-api.md §2.8, Task 1.7).
+#
+# This lives in GitHub Actions rather than in the app because the API runs on
+# Vercel, which is serverless: there is no process alive between requests to
+# hold a scheduler, so @nestjs/schedule would simply never fire. Same reason
+# keep-warm.yml is a workflow and not a setInterval.
+#
+# Cron is in UTC; IST is UTC+5:30, so 20:30 UTC = 02:00 IST. One entry, not
+# three: keep-warm.yml needs three because it fires *every five minutes across
+# a range* and POSIX cron cannot express "every 5 min from 00:30 to 18:30 UTC"
+# in one line. A once-nightly job is a single instant and copying the three
+# would just run it three times a night.
+#
+# 02:00 IST is chosen so the previous day is comfortably closed for the primary
+# market. It is NOT closed everywhere — at that instant it is still 09:30 the
+# previous morning in Pacific/Niue (UTC-11) — and the job knows: it checks each
+# day against the timezone of that day's own events and skips the ones still
+# running, which is what §2.8 requires and what the `openDaysSkipped` count
+# below reports. Those days are finalised on a later night, or computed on read
+# before that, which §2.8 explicitly allows.
+#
+# GitHub's scheduler runs late by minutes to tens of minutes and occasionally
+# drops a run entirely. That is fine: the job is idempotent (every rollup is a
+# pure recomputation from the event stream) and rebuilds a trailing seven-day
+# window, so a week of missed nights still heals itself.
+on:
+  schedule:
+    - cron: "30 20 * * *" # 20:30 UTC = 02:00 IST
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "(user, faith) pairs per request"
+        required: false
+        default: "25"
+      lookbackDays:
+        description: "Trailing window to rebuild (default 7)"
+        required: false
+
+jobs:
+  rollup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Roll up closed days
+        env:
+          # Overridable via a repo variable; defaults to the Vercel origin for
+          # the same reason keep-warm.yml uses it — a server-to-server call has
+          # no reason to go through whatever sits in front of the apex domain.
+          BASE_URL: ${{ vars.API_BASE_URL || 'https://unified-faith-service.vercel.app' }}
+          # Repo secret; must hold the same value as MAINTENANCE_SECRET in the
+          # Vercel project environment. Never echoed — it travels in a header,
+          # not in the URL, so it cannot leak through a logged request line.
+          MAINTENANCE_SECRET: ${{ secrets.MAINTENANCE_SECRET }}
+          LIMIT: ${{ inputs.limit || '25' }}
+          LOOKBACK: ${{ inputs.lookbackDays || '' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${MAINTENANCE_SECRET:-}" ]; then
+            echo "::error::MAINTENANCE_SECRET repo secret is not set; the endpoint would refuse every call."
+            exit 1
+          fi
+
+          offset=0
+          page=0
+          closed=0
+          skipped=0
+          future=0
+          failed=0
+          pairs=0
+          truncated=false
+
+          # One request per page: the API is a serverless function with an
+          # execution limit, so it processes a slice and tells us where to
+          # resume. 60 pages x 25 pairs is the nightly ceiling; a run that hits
+          # it warns rather than fails, since the next night carries on.
+          while [ "$page" -lt 60 ]; do
+            page=$((page + 1))
+            url="${BASE_URL}/api/v1/maintenance/activity/rollup?limit=${LIMIT}&offset=${offset}"
+            if [ -n "${LOOKBACK}" ]; then url="${url}&lookbackDays=${LOOKBACK}"; fi
+
+            # --retry covers the Vercel cold start on the first page; the call
+            # is idempotent, so retrying a POST is free.
+            body=$(curl -sS --fail-with-body -X POST "$url" \
+              -H "x-maintenance-secret: ${MAINTENANCE_SECRET}" \
+              -H "content-type: application/json" \
+              --max-time 60 --retry 3 --retry-delay 10 --retry-connrefused)
+
+            echo "$body" | jq -c '{offset, processedPairs, scannedPairs, closedDays, openDaysSkipped, futureRowsDeleted, failedPairs, stoppedOnBudget, hasMore, durationMs}'
+
+            pairs=$((pairs + $(echo "$body" | jq '.processedPairs')))
+            closed=$((closed + $(echo "$body" | jq '.closedDays')))
+            skipped=$((skipped + $(echo "$body" | jq '.openDaysSkipped')))
+            future=$((future + $(echo "$body" | jq '.futureRowsDeleted')))
+            failed=$((failed + $(echo "$body" | jq '.failedPairs')))
+
+            if [ "$(echo "$body" | jq -r '.hasMore')" != "true" ]; then
+              break
+            fi
+            offset=$(echo "$body" | jq -r '.nextOffset')
+            if [ "$page" -ge 60 ]; then truncated=true; fi
+          done
+
+          {
+            echo "### Nightly activity rollup"
+            echo ""
+            echo "| metric | value |"
+            echo "| --- | --- |"
+            echo "| pairs processed | ${pairs} |"
+            echo "| days closed | ${closed} |"
+            echo "| days still open (left for /today) | ${skipped} |"
+            echo "| future-dated rows dropped | ${future} |"
+            echo "| pairs failed | ${failed} |"
+            echo "| pages | ${page} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$truncated" = "true" ]; then
+            echo "::warning::Hit the 60-page ceiling with work left; raise the limit or the page cap."
+          fi
+
+          # A per-user failure is logged and stepped over by the service so one
+          # bad account cannot cost everyone behind it their rollup — but it
+          # must not pass silently here.
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::${failed} (user, faith) pair(s) failed to roll up; see the Vercel function logs."
+            exit 1
+          fi
