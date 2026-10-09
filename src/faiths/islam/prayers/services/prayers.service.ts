@@ -6,6 +6,18 @@ import { PrayerCalculationsService } from './prayer-calculations.service';
 
 const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 
+/**
+ * The `prayer_logs.status` values that mean "the user prayed on this day".
+ *
+ * `missed` is a logged *absence*: the row exists precisely to record that the
+ * prayer was not performed. `qada` is a prayer owed from **another** day,
+ * stamped with the date it was made up on — crediting the streak for it would
+ * credit today with yesterday's obligation, and the mobile client excludes it
+ * from both the daily goal and its on-device streak. The two must agree or the
+ * same screen shows two different numbers.
+ */
+const PRAYED_STATUSES = ['on_time', 'late'] as const;
+
 @Injectable()
 export class PrayersService {
   constructor(
@@ -179,10 +191,15 @@ export class PrayersService {
       where: { userId, status: 'on_time' }
     });
 
-    // Simple streak calculation (consecutive days with at least one prayer logged)
-    // This is a simplified version; real streak logic can be more complex
+    // Consecutive days on which the user actually prayed.
+    //
+    // The status filter is load-bearing and its absence was a real bug: a day
+    // whose only row was `missed` used to count as a day the user practised,
+    // so the streak was inflated — and inflated in the direction that flatters
+    // the user, which is the one direction a practice app must not be wrong
+    // in. `qada` is excluded for a different reason; see PRAYED_STATUSES.
     const logs = await this.prisma.prayerLog.findMany({
-      where: { userId },
+      where: { userId, status: { in: [...PRAYED_STATUSES] } },
       select: { date: true },
       distinct: ['date'],
       orderBy: { date: 'desc' },
