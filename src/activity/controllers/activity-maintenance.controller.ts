@@ -9,7 +9,12 @@ import {
 } from '@nestjs/common';
 import { ActivityExceptionFilter } from '../activity-errors';
 import { MaintenanceSecretGuard } from '../guards/maintenance-secret.guard';
-import { RollupCronService, RollupRunSummary } from '../services/rollup-cron.service';
+import {
+  RebuildRunSummary,
+  RollupCronService,
+  RollupRunSummary,
+} from '../services/rollup-cron.service';
+import { FaithId } from '../dto/activity.dto';
 
 /**
  * Operator endpoints for the retention engine. Called by machines, never by
@@ -76,6 +81,77 @@ export class ActivityMaintenanceController {
       budgetMs: toInt(budgetMs),
     });
   }
+
+  /**
+   * `POST /api/v1/maintenance/activity/rebuild`
+   *
+   * Replays `daily_rollups` from `activity_events` and reprojects streaks. The
+   * recovery path for a dropped or corrupted rollup cache.
+   *
+   * ### Why it is not the `rollup` route with a big `lookbackDays`
+   *
+   * Two different jobs. `rollup` finalises **closed days only**, over a
+   * trailing window, for pairs with **recent activity** — so a dormant account
+   * is never visited however large the window, and today is deliberately left
+   * for `/today` to write. This one visits every pair that has ever had an
+   * event and rebuilds unconditionally. Recovering a cold `daily_rollups`
+   * table previously meant a one-off script per (user, faith); it is now this.
+   *
+   * ### Scope and paging — read before running it across the user base
+   *
+   * `limit`/`offset` plus a wall-clock budget page across *pairs*, and the
+   * response carries `hasMore`/`nextOffset` for the caller to loop on, exactly
+   * like `rollup`. That bounds accounts per invocation; it does **not** bound
+   * one account. A dormant two-year account is ~730 day-rebuilds inside a
+   * single iteration and can exhaust the platform execution limit before the
+   * budget is ever checked.
+   *
+   * For such an account, narrow the scope instead of raising the limit:
+   *
+   *     POST .../rebuild?userId=<id>&from=2024-01-01&to=2024-06-30
+   *     POST .../rebuild?userId=<id>&from=2024-07-01&to=2024-12-31
+   *
+   * `from`/`to` are `YYYY-MM-DD` and are rejected rather than clamped if
+   * malformed, because silently dropping a range would turn a deliberately
+   * narrow rebuild into a sweep of the account's whole history. `to` without
+   * `from` is rejected for the same reason: it would look like a narrowing,
+   * be echoed back in `scope`, and change nothing. Every other parameter still
+   * degrades to its default, as on `rollup`.
+   *
+   * `to` is capped at the user's own today — a rollup for a day that has not
+   * happened yet is the stale-`goalMet` hazard `dropFutureRollups` exists to
+   * clean up, and this route must not create it — and `from` is floored at the
+   * account's first event day, so an over-wide range cannot write empty rows
+   * for days before the user existed.
+   */
+  @Post('rebuild')
+  @HttpCode(HttpStatus.OK)
+  async rebuild(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('budgetMs') budgetMs?: string,
+    @Query('userId') userId?: string,
+    @Query('faithId') faithId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<RebuildRunSummary> {
+    return this.cron.runFullRebuild({
+      limit: toInt(limit),
+      offset: toInt(offset),
+      budgetMs: toInt(budgetMs),
+      userId: toText(userId),
+      faithId: toText(faithId) as FaithId | undefined,
+      from: toText(from),
+      to: toText(to),
+    });
+  }
+}
+
+/** `undefined` for an absent or blank value, so the service's default wins. */
+function toText(value?: string): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
 }
 
 /** `undefined` for anything that is not an integer, so the service default wins. */

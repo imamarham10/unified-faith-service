@@ -109,11 +109,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * ## What it does narrow — read this before deleting `daily_rollups`
  *
  * Recovery from an **emptied** `daily_rollups` table must go through
- * `rebuildAll` (or the cron with a large `lookbackDays`), never through a
- * `/today` load. A `/today` load on a cold table now restores only the
- * trailing window, so a 400-day streak would come back as 93. That is the one
- * property this bound costs, and `rebuildAll` is kept — unbounded, tested by
- * the replay spec — precisely so the cost is recoverable rather than paid.
+ * `rebuildAll`, never through a `/today` load. A `/today` load on a cold table
+ * now restores only the trailing window, so a 400-day streak would come back
+ * as 93. That is the one property this bound costs, and `rebuildAll` is kept —
+ * unbounded, tested by the replay spec — precisely so the cost is recoverable
+ * rather than paid.
+ *
+ * The operator entry point is `POST /api/v1/maintenance/activity/rebuild`
+ * (`RollupCronService.runFullRebuild`). The nightly `rollup` route is **not**
+ * an alternative however large its `lookbackDays`: it enumerates pairs with a
+ * recent-activity floor, so a dormant account is never visited, and it writes
+ * only days that have already closed.
  */
 export const TODAY_REBUILD_WINDOW_DAYS =
   OCCURRED_AT_MAX_AGE_MS / DAY_MS + // §2.3 — the oldest occurredAt ingest accepts

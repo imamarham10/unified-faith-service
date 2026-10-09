@@ -132,11 +132,14 @@ describe('MaintenanceSecretGuard', () => {
 
 describe('ActivityMaintenanceController', () => {
   const summary = { ok: true } as any;
-  let cron: { runNightlyRollup: jest.Mock };
+  let cron: { runNightlyRollup: jest.Mock; runFullRebuild: jest.Mock };
   let controller: ActivityMaintenanceController;
 
   beforeEach(() => {
-    cron = { runNightlyRollup: jest.fn(async () => summary) };
+    cron = {
+      runNightlyRollup: jest.fn(async () => summary),
+      runFullRebuild: jest.fn(async () => summary),
+    };
     controller = new ActivityMaintenanceController(cron as unknown as RollupCronService);
   });
 
@@ -182,5 +185,68 @@ describe('ActivityMaintenanceController', () => {
 
   it('returns the run summary unchanged', async () => {
     await expect(controller.rollup()).resolves.toBe(summary);
+  });
+
+  describe('the full-rebuild route', () => {
+    it('rides the same class-level guard rather than a second protected surface', () => {
+      // The reason this route lives here and not on a new controller: the
+      // guard wiring is already asserted above, class-scoped, so it covers
+      // every route the class carries.
+      const guards = Reflect.getMetadata(GUARDS_METADATA, ActivityMaintenanceController) ?? [];
+
+      expect(guards).toContain(MaintenanceSecretGuard);
+      expect(typeof controller.rebuild).toBe('function');
+    });
+
+    it('passes the scope and paging options through', async () => {
+      await controller.rebuild('5', '10', '8000', 'user-a', 'islam', '2024-01-01', '2024-06-30');
+
+      expect(cron.runFullRebuild).toHaveBeenCalledWith({
+        limit: 5,
+        offset: 10,
+        budgetMs: 8000,
+        userId: 'user-a',
+        faithId: 'islam',
+        from: '2024-01-01',
+        to: '2024-06-30',
+      });
+    });
+
+    it('leaves every option undefined when the query string is absent', async () => {
+      await controller.rebuild();
+
+      expect(cron.runFullRebuild).toHaveBeenCalledWith({
+        limit: undefined,
+        offset: undefined,
+        budgetMs: undefined,
+        userId: undefined,
+        faithId: undefined,
+        from: undefined,
+        to: undefined,
+      });
+    });
+
+    it('treats a blank scope value as absent rather than as an empty filter', async () => {
+      await controller.rebuild(undefined, undefined, undefined, '  ', '', '  ');
+
+      expect(cron.runFullRebuild).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: undefined, faithId: undefined, from: undefined }),
+      );
+    });
+
+    it('hands a malformed day straight through for the service to reject', async () => {
+      // Not parsed or repaired here: silently dropping `from` would widen a
+      // deliberately narrow rebuild into a sweep of the account's history, so
+      // the service answers it with a 400.
+      await controller.rebuild(undefined, undefined, undefined, 'user-a', undefined, 'last-july');
+
+      expect(cron.runFullRebuild).toHaveBeenCalledWith(
+        expect.objectContaining({ from: 'last-july' }),
+      );
+    });
+
+    it('returns the run summary unchanged', async () => {
+      await expect(controller.rebuild()).resolves.toBe(summary);
+    });
   });
 });
