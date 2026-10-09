@@ -15,6 +15,11 @@ const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
  * credit today with yesterday's obligation, and the mobile client excludes it
  * from both the daily goal and its on-device streak. The two must agree or the
  * same screen shows two different numbers.
+ *
+ * This is the denominator of **every** number in `getPrayerStats` that claims
+ * to be a count of prayers, not just the streak. A `missed` row is not a
+ * prayer; a `qada` row is a prayer that belongs to a different day and is
+ * already reported separately as `totalQaza`.
  */
 const PRAYED_STATUSES = ['on_time', 'late'] as const;
 
@@ -183,8 +188,24 @@ export class PrayersService {
   }
 
   async getPrayerStats(userId: string) {
+    // `totalPrayers` is **prayers performed**, and `onTimePrayers` is the
+    // subset of those performed inside their window. The two are one pair, and
+    // the pair is the point: the client renders them side by side ("Total
+    // Prayers" / "On Time") and the only honest reading of that pair is a
+    // punctuality ratio over the same population.
+    //
+    // It used to count every row with no status filter, so `missed` — a logged
+    // *absence* — and `qada` — a prayer owed from another day — were reported
+    // as prayers performed. That inflated the denominator while the numerator
+    // stayed strictly on-time, which made `onTime/total` wrong in both
+    // directions at once: the total flattered the user and the ratio punished
+    // them. Same class of bug as the streak's missing filter (ee28410).
+    //
+    // Nothing is lost by the exclusion: `totalQaza` and `byPrayer` below still
+    // report the qada tally, and missed prayers remain readable from
+    // `GET /logs`.
     const totalPrayers = await this.prisma.prayerLog.count({
-      where: { userId }
+      where: { userId, status: { in: [...PRAYED_STATUSES] } }
     });
 
     const onTimePrayers = await this.prisma.prayerLog.count({

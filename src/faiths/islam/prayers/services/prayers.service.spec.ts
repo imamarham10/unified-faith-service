@@ -5,15 +5,17 @@ import { PrayersService } from './prayers.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
 
 /**
- * Specs for `GET /api/v1/islam/prayers/stats` — specifically the `streak`.
+ * Specs for `GET /api/v1/islam/prayers/stats`.
  *
- * The bug under test: the streak queried `prayer_logs` with **no status
- * filter**, so a day whose only row was `missed` counted as a day the user
- * prayed. The error flatters the user, which is the one direction a practice
- * app must never be wrong in. `qada` is excluded for a different reason: it
- * records a prayer owed from *another* day, stamped with the date it was made
- * up on, so counting it would credit today for yesterday's obligation. The
- * mobile client excludes both from its on-device streak and the two must agree.
+ * The bug under test, in two places: the streak and the prayer counts both
+ * queried `prayer_logs` with **no status filter**, so a day whose only row was
+ * `missed` counted as a day the user prayed, and a `missed` row counted as a
+ * prayer performed. The error flatters the user, which is the one direction a
+ * practice app must never be wrong in. `qada` is excluded for a different
+ * reason: it records a prayer owed from *another* day, stamped with the date it
+ * was made up on, so counting it would credit today for yesterday's obligation.
+ * The mobile client excludes both from its on-device streak and the two must
+ * agree.
  *
  * No database connection is made, for the same reason the activity specs make
  * none: `DATABASE_URL` points at a shared RDS instance holding live user data
@@ -313,22 +315,45 @@ describe('PrayersService.getPrayerStats', () => {
     });
   });
 
-  describe('the rest of the stats payload is unchanged', () => {
-    it('still reports every log in `totalPrayers` and the qada tallies', async () => {
+  describe('`totalPrayers` counts prayers performed, not rows', () => {
+    it('excludes `missed` and `qada` from `totalPrayers`, leaving the qada tallies alone', async () => {
+      // Four rows, two of them prayers the user actually performed. The old
+      // behaviour — `count({ where: { userId } })`, no status filter — reported
+      // 4, so a `missed` row (a logged *absence*) and a `qada` row (a prayer
+      // owed from another day) both read as prayers performed.
+      //
+      // `onTimePrayers` is not a separate fix: it was already on-time-only, so
+      // the unfiltered total made `onTime/total` a ratio with mismatched
+      // populations. The pair now shares one denominator — prayers performed —
+      // and the ratio the client renders beside them means something.
       log({ daysAgo: 0, status: 'on_time' });
-      log({ daysAgo: 0, status: 'missed', prayerName: 'dhuhr' });
+      log({ daysAgo: 0, status: 'late', prayerName: 'dhuhr' });
+      log({ daysAgo: 0, status: 'missed', prayerName: 'asr' });
+      log({ daysAgo: 1, status: 'qada', prayerName: 'maghrib' });
       prisma.prayerQadaCounts.push({ userId: USER, prayerName: 'fajr', count: 3 });
 
       const stats = await service.getPrayerStats(USER);
 
-      // Documented, not endorsed: `totalPrayers` still counts `missed` and
-      // `qada` rows. See the Task report — the same no-filter flaw, left alone
-      // because a client renders this number and changing it is not this
-      // commit's to make.
       expect(stats.totalPrayers).toBe(2);
       expect(stats.onTimePrayers).toBe(1);
+      // Excluding qada from the prayer count loses nothing: the tally is its
+      // own field in the same payload and is untouched.
       expect(stats.totalQaza).toBe(3);
       expect(stats.byPrayer.fajr).toBe(3);
+    });
+
+    it('counts a performed prayer once per row, not once per day', async () => {
+      // `totalPrayers` is a count of prayers, not of days — five prayers on one
+      // day are five. Only the streak collapses a day to one.
+      for (const prayerName of ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+        log({ daysAgo: 0, status: 'on_time', prayerName });
+      }
+
+      const stats = await service.getPrayerStats(USER);
+
+      expect(stats.totalPrayers).toBe(5);
+      expect(stats.onTimePrayers).toBe(5);
+      expect(stats.streak).toBe(1);
     });
   });
 });
