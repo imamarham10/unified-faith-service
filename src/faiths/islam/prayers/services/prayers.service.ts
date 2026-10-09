@@ -3,6 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
+import { daysBetween, toDayKey } from '../../../../activity/services/rollup.service';
 
 const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 
@@ -227,30 +228,13 @@ export class PrayersService {
       take: 30
     });
 
-    let streak = 0;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    // Check if we have a log for today or yesterday to start counting
-    if (logs.length > 0) {
-        let currentDate = new Date(logs[0].date);
-        const timeDiff = today.getTime() - currentDate.getTime();
-        const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
-        
-        if (daysDiff <= 1) { // Logged today or yesterday
-             streak = 1;
-             for (let i = 0; i < logs.length - 1; i++) {
-                 const curr = new Date(logs[i].date);
-                 const prev = new Date(logs[i+1].date);
-                 const diff = (curr.getTime() - prev.getTime()) / (1000 * 3600 * 24);
-                 if (Math.round(diff) === 1) {
-                     streak++;
-                 } else {
-                     break;
-                 }
-             }
-        }
-    }
+    // Rows become `YYYY-MM-DD` keys before anything compares them, and the
+    // reference day is the **UTC** calendar day — the one `@db.Date` round-
+    // trips through and the one `logPrayer` writes. See `countStreak`.
+    const streak = countStreak(
+      logs.map((log) => toDayKey(log.date)),
+      toDayKey(new Date()),
+    );
 
     // Qada tallies — additive fields so the mobile client's stats parser
     // (flat keys / byPrayer / totalQaza) resolves without breaking web.
@@ -285,4 +269,54 @@ export class PrayersService {
       
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
+}
+
+/**
+ * Consecutive calendar days ending today or yesterday, from a descending,
+ * already-deduplicated list of `YYYY-MM-DD` day keys.
+ *
+ * ## Why this compares day strings and not instants
+ *
+ * The streak used to build its reference day as `new Date(); setHours(0,0,0,0)`
+ * — **server-local** midnight — and subtract it from `prayer_logs.date`, which
+ * is `@db.Date` and comes back from Prisma as a `Date` at **UTC** midnight.
+ * Two different midnights subtracted from each other: the remainder is the
+ * runtime's UTC offset, and `Math.floor(ms / 86_400_000)` turns any non-zero
+ * offset into an off-by-one day.
+ *
+ * It has never misbehaved in production, and that is luck rather than design.
+ * Nothing in this repository pins the runtime timezone — there is no `TZ` in
+ * `vercel.json`, in `api/index.ts`, or anywhere else; Vercel's Node runtime
+ * simply happens to default to UTC. A region change, a platform default
+ * change, or anyone running this on a machine east of Greenwich shifts the
+ * comparison by a day and silently resets or extends every user's streak. On
+ * an IST host, a run whose most recent prayed day was *two* days ago still
+ * reads as alive.
+ *
+ * `rollup.service.ts`'s header is an essay on exactly this failure, and its
+ * conclusion is reused rather than re-derived: **compare `YYYY-MM-DD` strings,
+ * never instants.** `toDayKey` and `daysBetween` are imported from it, so
+ * there is no third date helper in this codebase.
+ *
+ * ## The lower bound, and why it is a filter rather than a `>= 0`
+ *
+ * The old gate was `daysDiff <= 1` with no floor, so a log dated in the future
+ * passed it — nothing in `prayer_logs` forbids one, and `logPrayer` upserts
+ * whatever date the client hands it. Adding `daysDiff >= 0` would zero the
+ * streak outright for a user who has one stray future row *and* a healthy run,
+ * because that row would be the anchor the gate rejects. Future days are
+ * dropped first and the gate runs on what is left, which is what
+ * `RollupService.projectStreak` does (`.filter((day) => day <= today)`) for
+ * exactly the same reason.
+ */
+export function countStreak(daysDesc: string[], today: string): number {
+  const days = daysDesc.filter((day) => day <= today);
+  if (!days.length || daysBetween(days[0], today) > 1) return 0;
+
+  let streak = 1;
+  for (let i = 0; i < days.length - 1; i += 1) {
+    if (daysBetween(days[i + 1], days[i]) !== 1) break;
+    streak += 1;
+  }
+  return streak;
 }

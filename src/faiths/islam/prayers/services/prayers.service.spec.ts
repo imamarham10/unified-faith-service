@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
-import { PrayersService } from './prayers.service';
+import { PrayersService, countStreak } from './prayers.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
 
 /**
@@ -38,13 +38,15 @@ import { PrayerCalculationsService } from './prayer-calculations.service';
  * ## Why every fixture date is a UTC midnight
  *
  * `prayer_logs.date` is `@db.Date`, which Prisma hands back as a `Date` at
- * **UTC** midnight, while `getPrayerStats` builds its reference day with
- * `setHours(0,0,0,0)` — **server-local** midnight. Building fixtures as UTC
- * midnights keeps every day-to-day difference an exact 86_400_000 ms in any
- * runner timezone, so these specs assert the status filter rather than the
- * runner's `TZ`. (The local-vs-UTC mismatch in the service is a real latent
- * bug and is reported separately; it is deliberately not fixed here, where the
- * change under test is the status filter.)
+ * **UTC** midnight, and that is now also the day the service reckons against
+ * (`toDayKey`). Fixtures are built the same way so a day is a day in any
+ * runner timezone.
+ *
+ * The service used to build its reference day with `setHours(0,0,0,0)` —
+ * **server-local** midnight — and subtract instants. `the streak is reckoned
+ * in calendar days` below asserts that it no longer does, by running the same
+ * fixtures under several `TZ` values; a stale assertion there would be an
+ * assertion about the runner rather than about the service.
  */
 
 const USER = 'prayer-user';
@@ -312,6 +314,99 @@ describe('PrayersService.getPrayerStats', () => {
 
     it('is zero for a user who has never logged anything', async () => {
       expect(await streakOf()).toBe(0);
+    });
+  });
+
+  // ------------------------------------------- calendar days, not instants
+
+  describe('the streak is reckoned in calendar days', () => {
+    const ORIGINAL_TZ = process.env.TZ;
+
+    afterEach(() => {
+      if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+      else process.env.TZ = ORIGINAL_TZ;
+    });
+
+    // Node re-reads `process.env.TZ` on every `Date` operation, so this really
+    // moves the server's wall clock rather than only its label. The spread is
+    // the point: `Pacific/Kiritimati` is UTC+14 and `Pacific/Niue` UTC−11, the
+    // two ends of the 26-hour band `rollup-cron.service.ts` documents.
+    const ZONES = ['UTC', 'Asia/Kolkata', 'Pacific/Kiritimati', 'Pacific/Niue', 'America/New_York'];
+
+    it.each(ZONES)('reports the same live streak under TZ=%s', async (zone) => {
+      process.env.TZ = zone;
+      log({ daysAgo: 0, status: 'on_time' });
+      log({ daysAgo: 1, status: 'on_time' });
+      log({ daysAgo: 2, status: 'on_time' });
+
+      expect(await streakOf()).toBe(3);
+    });
+
+    it.each(ZONES)('is zero under TZ=%s when the last prayed day is two days back', async (zone) => {
+      // The assertion the old instant arithmetic failed. Server-local midnight
+      // minus a UTC-midnight `@db.Date` leaves the runtime's offset behind, and
+      // `Math.floor` turns it into an off-by-one: east of Greenwich a run that
+      // ended the day before yesterday still passed the `<= 1` gate and was
+      // reported as alive.
+      process.env.TZ = zone;
+      log({ daysAgo: 2, status: 'on_time' });
+      log({ daysAgo: 3, status: 'on_time' });
+
+      expect(await streakOf()).toBe(0);
+    });
+
+    it('ignores a future-dated log rather than letting it zero a live streak', async () => {
+      // Nothing in `prayer_logs` forbids a future date and `logPrayer` upserts
+      // whatever the client sends, so a device with a wrong clock can write
+      // one. The old gate had no lower bound and counted it; a naive
+      // `daysDiff >= 0` would make it the rejected anchor and report 0 for a
+      // user with a perfectly good run. Dropping it first does neither.
+      log({ daysAgo: -5, status: 'on_time' });
+      log({ daysAgo: 0, status: 'on_time' });
+      log({ daysAgo: 1, status: 'on_time' });
+
+      expect(await streakOf()).toBe(2);
+    });
+
+    it('is zero when the only log is future-dated', async () => {
+      log({ daysAgo: -1, status: 'on_time' });
+
+      expect(await streakOf()).toBe(0);
+    });
+  });
+
+  describe('countStreak', () => {
+    // The day arithmetic on its own, with no clock and no database in it.
+    it('counts a contiguous run ending today', () => {
+      expect(countStreak(['2026-10-09', '2026-10-08', '2026-10-07'], '2026-10-09')).toBe(3);
+    });
+
+    it('counts a run that ended yesterday', () => {
+      expect(countStreak(['2026-10-08', '2026-10-07'], '2026-10-09')).toBe(2);
+    });
+
+    it('stops at the first gap', () => {
+      expect(countStreak(['2026-10-09', '2026-10-08', '2026-10-06'], '2026-10-09')).toBe(2);
+    });
+
+    it('is zero when the run ended before yesterday', () => {
+      expect(countStreak(['2026-10-07', '2026-10-06'], '2026-10-09')).toBe(0);
+    });
+
+    it('crosses a month boundary', () => {
+      expect(countStreak(['2026-10-01', '2026-09-30', '2026-09-29'], '2026-10-01')).toBe(3);
+    });
+
+    it('crosses a year boundary', () => {
+      expect(countStreak(['2027-01-01', '2026-12-31', '2026-12-30'], '2027-01-01')).toBe(3);
+    });
+
+    it('drops days after today before anchoring', () => {
+      expect(countStreak(['2026-12-25', '2026-10-09', '2026-10-08'], '2026-10-09')).toBe(2);
+    });
+
+    it('is zero for an empty list', () => {
+      expect(countStreak([], '2026-10-09')).toBe(0);
     });
   });
 
