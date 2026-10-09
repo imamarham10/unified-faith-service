@@ -3,7 +3,12 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
-import { daysBetween, toDayKey } from '../../../../activity/services/rollup.service';
+import {
+  addDays,
+  daysBetween,
+  toDayKey,
+  toUtcMidnight,
+} from '../../../../activity/services/rollup.service';
 
 const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 
@@ -23,6 +28,13 @@ const PRAYER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
  * already reported separately as `totalQaza`.
  */
 const PRAYED_STATUSES = ['on_time', 'late'] as const;
+
+/**
+ * Days of `prayer_logs` the streak reads per query, and the number of those
+ * queries it will chain before giving up. See `PrayersService.prayerStreak`.
+ */
+export const STREAK_CHUNK_DAYS = 90;
+export const STREAK_MAX_CHUNKS = 20;
 
 @Injectable()
 export class PrayersService {
@@ -213,28 +225,7 @@ export class PrayersService {
       where: { userId, status: 'on_time' }
     });
 
-    // Consecutive days on which the user actually prayed.
-    //
-    // The status filter is load-bearing and its absence was a real bug: a day
-    // whose only row was `missed` used to count as a day the user practised,
-    // so the streak was inflated — and inflated in the direction that flatters
-    // the user, which is the one direction a practice app must not be wrong
-    // in. `qada` is excluded for a different reason; see PRAYED_STATUSES.
-    const logs = await this.prisma.prayerLog.findMany({
-      where: { userId, status: { in: [...PRAYED_STATUSES] } },
-      select: { date: true },
-      distinct: ['date'],
-      orderBy: { date: 'desc' },
-      take: 30
-    });
-
-    // Rows become `YYYY-MM-DD` keys before anything compares them, and the
-    // reference day is the **UTC** calendar day — the one `@db.Date` round-
-    // trips through and the one `logPrayer` writes. See `countStreak`.
-    const streak = countStreak(
-      logs.map((log) => toDayKey(log.date)),
-      toDayKey(new Date()),
-    );
+    const streak = await this.prayerStreak(userId);
 
     // Qada tallies — additive fields so the mobile client's stats parser
     // (flat keys / byPrayer / totalQaza) resolves without breaking web.
@@ -248,6 +239,95 @@ export class PrayersService {
       totalQaza: qada.totalQaza,
       byPrayer: qada.byPrayer,
     };
+  }
+
+  /**
+   * Consecutive days on which the user actually prayed, ending today or
+   * yesterday.
+   *
+   * ## The status filter
+   *
+   * Load-bearing, and its absence was a real bug (ee28410): a day whose only
+   * row was `missed` used to count as a day the user practised, inflating the
+   * streak in the direction that flatters the user — the one direction a
+   * practice app must not be wrong in. `qada` is excluded for a different
+   * reason; see `PRAYED_STATUSES`.
+   *
+   * ## Why this pages backwards instead of `take: 30`
+   *
+   * It used to be one query with `distinct: ['date']` and `take: 30`. Prisma 7
+   * does **not** push that `take` into SQL. Verified rather than inferred —
+   * `log: ['query']` against a throwaway Postgres holding 40 distinct days x 5
+   * rows emitted
+   *
+   *     SELECT "prayer_logs"."id", "prayer_logs"."date" FROM "prayer_logs"
+   *     WHERE (user_id = $1 AND status IN ($2,$3))
+   *     ORDER BY "prayer_logs"."date" DESC OFFSET $4
+   *
+   * with no `LIMIT` at all, returned all 200 rows to the client, and
+   * `@prisma/query-plan-executor`'s `processManyRecords` then applied
+   * `distinctBy` **before** `paginate`. Two consequences, both bad and both
+   * worst for the most engaged users:
+   *
+   *  1. the 30 was 30 *distinct days*, a hard 30-day ceiling on the streak;
+   *  2. every `/stats` call dragged the user's entire prayer-log history
+   *     across the wire to throw almost all of it away.
+   *
+   * So the bound has to be a `WHERE` clause, which is also the shape the
+   * rollup work settled on. A single wide window would trade one ceiling for a
+   * higher one, so this walks backwards in `STREAK_CHUNK_DAYS` windows and
+   * fetches the next one **only** when the run is still unbroken at the
+   * current window's floor. A streak that breaks inside the first 90 days —
+   * almost every user, almost always — costs exactly one indexed range scan
+   * over `@@index([userId, date])`; a 400-day streak costs five.
+   *
+   * `STREAK_MAX_CHUNKS` is a terminator, not a product limit: 20 x 90 days is
+   * nearly five years of unbroken daily practice, past which this stops
+   * walking rather than loop forever on corrupt data.
+   */
+  private async prayerStreak(userId: string): Promise<number> {
+    // The **UTC** calendar day — the one `@db.Date` round-trips through and
+    // the one `logPrayer` writes. See `countStreak` for why not local.
+    const today = toDayKey(new Date());
+
+    const days: string[] = [];
+    let streak = 0;
+    let upper = today;
+
+    for (let chunk = 0; chunk < STREAK_MAX_CHUNKS; chunk += 1) {
+      const lower = addDays(upper, -(STREAK_CHUNK_DAYS - 1));
+
+      const rows = await this.prisma.prayerLog.findMany({
+        where: {
+          userId,
+          status: { in: [...PRAYED_STATUSES] },
+          // `lte` on the first pass is `today`: the future-day filter from
+          // `countStreak`, pushed into SQL so a future-dated row cannot
+          // consume part of the window either.
+          date: { gte: toUtcMidnight(lower), lte: toUtcMidnight(upper) },
+        },
+        select: { date: true },
+        distinct: ['date'],
+        orderBy: { date: 'desc' },
+      });
+
+      // Chunks are appended newest-first and each chunk is itself descending,
+      // so the accumulated list stays descending overall.
+      for (const row of rows) days.push(toDayKey(row.date));
+
+      streak = countStreak(days, today);
+      // Nothing older can revive a run that is already dead at its anchor.
+      if (streak === 0) return 0;
+
+      // The run reaches this window's floor only if it covers every day from
+      // the anchor down to `lower`; otherwise it broke inside the window and
+      // no earlier row can extend it.
+      if (addDays(days[0], -(streak - 1)) > lower) return streak;
+
+      upper = addDays(lower, -1);
+    }
+
+    return streak;
   }
 
   /** Parse 'YYYY-MM-DD' into a Date at *server-local* midnight (adhan reads local components). */

@@ -1,7 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from '../../../../common/utils/prisma.service';
-import { PrayersService, countStreak } from './prayers.service';
+import {
+  PrayersService,
+  countStreak,
+  STREAK_CHUNK_DAYS,
+  STREAK_MAX_CHUNKS,
+} from './prayers.service';
 import { PrayerCalculationsService } from './prayer-calculations.service';
 
 /**
@@ -372,6 +377,80 @@ describe('PrayersService.getPrayerStats', () => {
       log({ daysAgo: -1, status: 'on_time' });
 
       expect(await streakOf()).toBe(0);
+    });
+  });
+
+  // ------------------------------------------------- no ceiling, no scan
+
+  describe('the streak has no artificial ceiling', () => {
+    /** `n` consecutive prayed days ending today. */
+    function run(n: number) {
+      for (let i = 0; i < n; i += 1) log({ daysAgo: i, status: 'on_time' });
+    }
+
+    it('counts a run far longer than one query window', async () => {
+      // 200 days. The old query asked for `take: 30` on a `distinct` select,
+      // which Prisma 7 applies *after* de-duplication — so this reported 30,
+      // a hard 30-day ceiling that bit exactly the users who had earned the
+      // longest streaks.
+      run(200);
+
+      expect(await streakOf()).toBe(200);
+      expect(prisma.prayerLog.findMany.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('counts a run that lands exactly on a window boundary', async () => {
+      run(STREAK_CHUNK_DAYS);
+
+      expect(await streakOf()).toBe(STREAK_CHUNK_DAYS);
+    });
+
+    it('counts a run one day past a window boundary', async () => {
+      run(STREAK_CHUNK_DAYS + 1);
+
+      expect(await streakOf()).toBe(STREAK_CHUNK_DAYS + 1);
+    });
+
+    it('never reads a row without a date bound on it', async () => {
+      // The second half of the same bug: with no `LIMIT` in the emitted SQL,
+      // `/stats` dragged the user's whole prayer-log history across the wire
+      // on every call. Every read must now carry a window.
+      run(5);
+      await service.getPrayerStats(USER);
+
+      for (const [args] of prisma.prayerLog.findMany.mock.calls) {
+        expect(args.where.date.gte).toBeInstanceOf(Date);
+        expect(args.where.date.lte).toBeInstanceOf(Date);
+      }
+    });
+
+    it('reads one window when the run breaks inside it, however deep the history', async () => {
+      // 400 days of history, but the run ended three days ago. Walking back
+      // past the break would be work with no possible effect on the answer.
+      log({ daysAgo: 0, status: 'on_time' });
+      for (let i = 3; i < 400; i += 1) log({ daysAgo: i, status: 'on_time' });
+
+      expect(await streakOf()).toBe(1);
+      expect(prisma.prayerLog.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads one window for a dead streak over a deep history', async () => {
+      for (let i = 10; i < 400; i += 1) log({ daysAgo: i, status: 'on_time' });
+
+      expect(await streakOf()).toBe(0);
+      expect(prisma.prayerLog.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops walking at STREAK_MAX_CHUNKS rather than paging forever', async () => {
+      // A terminator, not a product limit: 20 x 90 days is a run of nearly
+      // five years without a single missed day. A user who genuinely gets
+      // there sees the bound rather than a serverless timeout.
+      const cap = STREAK_CHUNK_DAYS * STREAK_MAX_CHUNKS;
+      expect(cap).toBeGreaterThan(4 * 365);
+      run(cap + 50);
+
+      expect(await streakOf()).toBe(cap);
+      expect(prisma.prayerLog.findMany).toHaveBeenCalledTimes(STREAK_MAX_CHUNKS);
     });
   });
 
