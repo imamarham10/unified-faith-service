@@ -4,6 +4,10 @@ import { join } from 'path';
 
 const BATCH_SIZE = 500;
 
+/// Simultaneous writes in flight, matched to the Postgres pool's `max`.
+/// Higher just queues on connection acquisition; lower wastes round trips.
+const WRITE_CONCURRENCY = 10;
+
 /**
  * The committed IndoPak snapshot. Provenance, licensing position and the
  * refresh command are in `docs/quran_script_provenance.md`.
@@ -245,14 +249,34 @@ async function seedIndopakScript(
   let updated = 0;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    await prisma.$transaction(
-      batch.map((row) =>
-        prisma.quranVerse.update({
-          where: { id: row.id },
-          data: { textIndopak: row.textIndopak },
-        }),
-      ),
-    );
+    // Deliberately NOT wrapped in a transaction.
+    //
+    // The first live run was `$transaction(batch.map(update))` and died at
+    // 5097ms with P2028: 500 sequential UPDATEs over the wire to RDS exceed
+    // Prisma's 5s interactive-transaction default, and the array form of
+    // $transaction accepts only `isolationLevel` — `timeout` is available
+    // solely on the callback form, which would mean an await-per-row inside
+    // one long-held transaction.
+    //
+    // Atomicity buys nothing here: this fills a brand-new nullable column
+    // that no reader depends on yet, every write is idempotent (same id,
+    // same text), the already-seeded check counts non-null rows rather than
+    // probing for one, and the post-write count below refuses to report
+    // success on a partial result. A half-finished run is simply re-run.
+    //
+    // Concurrency is pinned to the connection pool rather than the batch
+    // size. The Uthmani seeder above fans 500 ways into a `max: 10` pool and
+    // leaves 490 promises queueing on connection acquisition.
+    for (let j = 0; j < batch.length; j += WRITE_CONCURRENCY) {
+      await Promise.all(
+        batch.slice(j, j + WRITE_CONCURRENCY).map((row) =>
+          prisma.quranVerse.update({
+            where: { id: row.id },
+            data: { textIndopak: row.textIndopak },
+          }),
+        ),
+      );
+    }
     updated += batch.length;
     if (updated % 2000 === 0 || updated === rows.length) {
       console.log(`   Updated ${updated}/${rows.length} verses.`);
