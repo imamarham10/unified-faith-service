@@ -278,7 +278,7 @@ Matching `APIs.md` § Error Responses, with one addition:
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `clientEventId` | string (UUID) | yes | UUID v4, minted on the device. Unique per user, forever. See §4.3. |
+| `clientEventId` | string (UUID) | yes | **Any well-formed UUID**, minted on the device. Unique per user, forever. See §4.3 and §4.3.1. |
 | `faithId` | string enum | yes | §1.1 |
 | `activityType` | string enum | yes | §1.2, and must belong to `faithId` |
 | `quantity` | integer | no — defaults to `1` | `1 … 10000`. Must be a positive integer; `0`, negatives and fractions are rejected. |
@@ -334,6 +334,27 @@ Justification, in one line: all-or-nothing creates a poison pill — a single pe
 - **First write wins.** If the same `clientEventId` arrives with a different payload, the stored row is *not* updated — the second is counted as a duplicate and the original stands. The device must therefore never reuse a `clientEventId` for different content. Mint a fresh UUID per recorded act, persist it with the queue row, and reuse it only for retries of that same row.
 - A `clientEventId` repeated **within a single batch** follows the same rule: the first occurrence is accepted, later ones are counted as duplicates.
 - `clientEventId` is scoped to the user. Two users may theoretically mint the same UUID without collision.
+
+#### §4.3.1 Any UUID version is valid — do not narrow this
+
+An earlier revision of this table said "UUID v4". **The server has never
+enforced that**, and must not start: it validates shape only, and the comment
+at `src/activity/services/activity.service.ts:144` records the reasoning —
+§4.5's error is "not a UUID", a rejection is *permanent*, and telling a client
+minting a v7 that its id is malformed forever would be a lie the client can
+never recover from.
+
+This is now load-bearing rather than theoretical. The Qur'an readers mint
+**UUID v5** over `type | dedupeKey | localDay` so that re-reading the same
+verse on the same day is one act rather than a fresh one, and so that the surah
+reader and the juz reader agree about a verse read in both. Those ids are
+deterministic by design.
+
+**Narrowing the validator to v4 would reject every verse-read event — and
+because rejection is permanent (§4.8), the flusher would delete each one.
+Reading history would vanish with no error surfaced to the user.** If you are
+tempted to "fix" the validator to match a contract that says v4, this clause is
+the reason not to. Counters still mint v4; only deterministic dedupe uses v5.
 
 ### 4.4 Success response
 
@@ -732,7 +753,7 @@ Nothing about this is visible in the request or response shapes above. `PUT /goa
 
 A correct offline-capable client satisfies all of these. Each one maps to a rule above.
 
-- [ ] Mint a fresh UUID v4 as `clientEventId` per recorded act, persist it alongside the queued row, and reuse it for every retry of that row — never for anything else (§4.3).
+- [ ] Mint a UUID as `clientEventId` per recorded act, persist it alongside the queued row, and reuse it for every retry of that row — never for anything else (§4.3). A fresh v4 for acts that genuinely repeat (each dhikr tap is its own act); a deterministic v5 where re-doing the same thing on the same day must count once (§4.3.1).
 - [ ] Stamp `localDay`, `timezone` and `occurredAt` **at the moment of the act**, from the device, not at flush time. An event flushed six days later still carries the day it happened (§2.2).
 - [ ] Send `timezone` as an IANA name, not an offset or abbreviation (§1.5).
 - [ ] Chunk the queue into batches of ≤100 and send them sequentially (§4.7).
