@@ -54,6 +54,18 @@ function matchesClause(actual: unknown, expected: unknown): boolean {
     if ('gte' in ops && !(a >= asNumber(ops.gte))) return false;
     if ('gt' in ops && !(a > asNumber(ops.gt))) return false;
     if ('equals' in ops && !matchesClause(actual, ops.equals)) return false;
+
+    // An operator this double does not implement must fail loudly rather than
+    // fall through to `true`. The permissive version is a landmine: under it
+    // any filter the subject adds matches every row, so a spec asserting that
+    // a filter *narrows* something passes just as happily against code that
+    // never applies it. `rollup-cron.service.spec.ts` and
+    // `prayers.service.spec.ts` throw for the same reason.
+    const known = ['lte', 'lt', 'gte', 'gt', 'equals'];
+    const unknownOps = Object.keys(ops).filter((k) => !known.includes(k));
+    if (unknownOps.length) {
+      throw new Error(`prisma double: unimplemented operator(s) ${unknownOps.join(', ')}`);
+    }
     return true;
   }
   return actual === expected;
@@ -150,6 +162,46 @@ function createPrismaDouble() {
 }
 
 type PrismaDouble = ReturnType<typeof createPrismaDouble>;
+
+/** Every `jest.fn()` on the double that stands for one round trip to Postgres. */
+const QUERY_METHODS = [
+  ['activityEvent', 'findMany'],
+  ['activityEvent', 'findFirst'],
+  ['activityEvent', 'deleteMany'],
+  ['userGoal', 'findMany'],
+  ['userGoal', 'findFirst'],
+  ['userGoal', 'deleteMany'],
+  ['dailyRollup', 'findMany'],
+  ['dailyRollup', 'findFirst'],
+  ['dailyRollup', 'deleteMany'],
+  ['dailyRollup', 'upsert'],
+  ['streakState', 'findMany'],
+  ['streakState', 'findFirst'],
+  ['streakState', 'findUnique'],
+  ['streakState', 'deleteMany'],
+  ['streakState', 'upsert'],
+] as const;
+
+const queryMocks = (prisma: PrismaDouble): jest.Mock[] =>
+  QUERY_METHODS.map(([model, method]) => (prisma as any)[model][method] as jest.Mock);
+
+/** How many database round trips the service has made since the last reset. */
+const roundTrips = (prisma: PrismaDouble): number =>
+  queryMocks(prisma).reduce((total, mock) => total + mock.mock.calls.length, 0);
+
+/** The same split into the half that reads and the half that writes. */
+const reads = (prisma: PrismaDouble): number =>
+  roundTrips(prisma) - writes(prisma);
+
+const writes = (prisma: PrismaDouble): number =>
+  prisma.dailyRollup.upsert.mock.calls.length + prisma.streakState.upsert.mock.calls.length;
+
+const resetRoundTrips = (prisma: PrismaDouble): void => {
+  for (const mock of queryMocks(prisma)) mock.mockClear();
+};
+
+/** §6.2 — the widest window `/history` accepts. */
+const HISTORY_SPAN_MAX = 92;
 
 describe('RollupService', () => {
   let service: RollupService;
@@ -689,9 +741,35 @@ describe('RollupService', () => {
       // And the rows are untouched, not merely the projection over them.
       expect(await rollupRows()).toEqual(unboundedRows);
 
-      // The half that proves the bound bit at all.
-      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(WINDOW + 1);
-      expect(prisma.dailyRollup.upsert.mock.calls.length).toBeLessThan(SPAN);
+      // The half that proves the bound bit at all. This used to assert
+      // `WINDOW + 1` upserts — one rewrite per day in the window, every one of
+      // them storing the value the row already held. The window is still
+      // rebuilt; it is simply no longer written back when nothing moved, so
+      // the honest assertion for "the bound bit" is now that the rebuild
+      // touched the window and wrote none of it.
+      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(0);
+      // And the window really was the range considered — the event query is
+      // floored at `today - WINDOW`, not at the first of the 200 days.
+      const eventCalls = prisma.activityEvent.findMany.mock.calls;
+      const eventQuery = eventCalls[eventCalls.length - 1][0];
+      expect(dayOf(eventQuery.where.localDay.gte)).toBe(addDays(TODAY, -WINDOW));
+      expect(dayOf(eventQuery.where.localDay.lte)).toBe(TODAY);
+    });
+
+    it('writes exactly the one day whose events changed, and nothing else', async () => {
+      // The other half of skip-identical: it must not skip a day that really
+      // moved. One new event on one day, and that day alone is rewritten.
+      seedLongRun();
+      await service.rebuildAll(USER, ISLAM, TODAY);
+
+      addEvent({ localDay: '2026-10-02', activityType: 'dhikr', quantity: 33 });
+      resetRoundTrips(prisma);
+      await service.rebuildRecent(USER, ISLAM, TODAY);
+
+      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(1);
+      const written = prisma.dailyRollup.upsert.mock.calls[0][0];
+      expect(dayOf(written.where.userId_faithId_localDay.localDay)).toBe('2026-10-02');
+      expect(written.update.counts).toEqual({ quran_verse: 5, dhikr: 33 });
     });
 
     it('still writes only the days a short-history user has, not a whole window', async () => {
@@ -704,6 +782,8 @@ describe('RollupService', () => {
       prisma.dailyRollup.upsert.mockClear();
       const bounded = await service.rebuildRecent(USER, ISLAM, TODAY);
 
+      // Two days of history, two rows written — and they are genuinely new,
+      // so skip-identical has nothing to skip on this first pass.
       expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(2);
       expect(bounded.current).toBe(2);
       expect(await rollupRows()).toHaveLength(2);
@@ -726,6 +806,99 @@ describe('RollupService', () => {
       const recovered = await service.rebuildAll(USER, ISLAM, TODAY);
       expect(recovered.current).toBe(SPAN);
       expect(await rollupRows()).toHaveLength(SPAN);
+    });
+  });
+
+  // ================================================== round trips per read
+
+  describe('round trips (the shape of the read path)', () => {
+    // These count calls on the double rather than measuring time, because
+    // time on a test double measures nothing. The property under test is that
+    // the number of statements a read issues does **not** grow with the window
+    // it rebuilds — which is exactly what the per-day `await` loop these specs
+    // replaced could not say.
+    //
+    // Against that loop, `persistDailyRollup` per day is an event query, a
+    // goal query and an upsert: a 93-day `/today` was 286 round trips and a
+    // 92-day `/history` was 276. Every number asserted below fails against it.
+    const TODAY = '2026-10-08';
+
+    /** A goal from `daysBack` ago and one met day every third day since. */
+    function seedHistory(daysBack: number) {
+      const first = addDays(TODAY, -daysBack);
+      addGoal({ target: 5, effectiveFrom: first });
+      for (let i = 0; i <= daysBack; i += 3) {
+        addEvent({ localDay: addDays(first, i), quantity: 5 });
+      }
+      return first;
+    }
+
+    it('reads a window in a fixed three statements, whatever its width', async () => {
+      // `GET /history`. Dense over the requested range, so the old loop's cost
+      // was 3 x the span with nothing else to blame it on.
+      seedHistory(200);
+
+      const counts: number[] = [];
+      for (const span of [1, 8, 28, HISTORY_SPAN_MAX]) {
+        resetRoundTrips(prisma);
+        const snapshots = await service.rebuildRange(
+          USER,
+          ISLAM,
+          addDays(TODAY, -(span - 1)),
+          TODAY,
+        );
+        // §6.3 — still dense: one entry per day, however few statements it took.
+        expect(snapshots).toHaveLength(span);
+        counts.push(reads(prisma));
+      }
+
+      // Events, goals, existing rollups. Three, for one day and for ninety-two.
+      expect(counts).toEqual([3, 3, 3, 3]);
+    });
+
+    it('refreshes /today in a fixed five statements, whatever the window', async () => {
+      // `GET /today`. The five are: the first-event probe, the window's
+      // events, the goals, every persisted rollup (the streak reads them all,
+      // by design) and the stored StreakState.
+      seedHistory(200);
+
+      const counts: number[] = [];
+      for (const window of [7, 30, TODAY_REBUILD_WINDOW_DAYS]) {
+        resetRoundTrips(prisma);
+        await service.rebuildRecent(USER, ISLAM, TODAY, window);
+        counts.push(reads(prisma));
+      }
+
+      expect(counts).toEqual([5, 5, 5]);
+    });
+
+    it('writes nothing on a second /today when nothing has changed', async () => {
+      // The steady state, which is what the app's primary screen actually
+      // does: open it twice in a minute and the second open rewrites no
+      // rollup at all. Only the StreakState is touched, because §2.5 makes it
+      // a cache of "as of today" and it is one row, not ninety-four.
+      seedHistory(200);
+      await service.rebuildRecent(USER, ISLAM, TODAY);
+
+      resetRoundTrips(prisma);
+      await service.rebuildRecent(USER, ISLAM, TODAY);
+
+      expect(prisma.dailyRollup.upsert).not.toHaveBeenCalled();
+      expect(writes(prisma)).toBe(1);
+      // Six statements for the whole Today screen's engine half.
+      expect(roundTrips(prisma)).toBe(6);
+    });
+
+    it('still persists a day that has never been computed', async () => {
+      // Skip-identical must not become skip-everything: a day with no row is
+      // not "unchanged", it is absent, and §6.3's density depends on it.
+      seedHistory(10);
+
+      resetRoundTrips(prisma);
+      await service.rebuildRange(USER, ISLAM, addDays(TODAY, -10), TODAY);
+
+      expect(prisma.dailyRollup.upsert).toHaveBeenCalledTimes(11);
+      expect(prisma.dailyRollups).toHaveLength(11);
     });
   });
 });

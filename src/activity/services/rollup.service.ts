@@ -65,6 +65,43 @@ export interface StreakSnapshot {
   freezeResetOn: string;
 }
 
+/**
+ * What `GET /today` needs out of one refresh: the streak, today's rollup and
+ * the goal in force today.
+ *
+ * Bundled rather than fetched by three more calls because all three fall out
+ * of the same window rebuild. `/today` used to follow `rebuildRecent` with a
+ * fresh `computeDailyRollup` and a fresh `findGoalInForce` — five round trips
+ * for values the rebuild had just computed and thrown away.
+ */
+export interface TodayProjection {
+  streak: StreakSnapshot;
+  day: RollupSnapshot;
+  goal: { goalType: string; target: number } | null;
+}
+
+/** A `user_goals` row reduced to what the rollup reads. */
+interface GoalRow {
+  goalType: string;
+  target: number;
+  effectiveFrom: Date | string;
+}
+
+/** An `activity_events` row reduced to what the rollup reads. */
+interface EventRow {
+  activityType: string;
+  quantity: unknown;
+  localDay: Date | string;
+}
+
+/** A persisted `daily_rollups` row, as the diff below compares it. */
+interface RollupRow {
+  localDay: Date | string;
+  counts: unknown;
+  points: number;
+  goalMet: boolean;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -238,7 +275,14 @@ export class RollupService {
     return goal ?? null;
   }
 
-  /** Compute one day and write it to `daily_rollups`. */
+  /**
+   * Compute one day and write it to `daily_rollups`.
+   *
+   * Two round trips to read plus one to write, per day. Fine for a single day
+   * — `PUT /goal` re-evaluating today — and the reason `rebuildRange` below
+   * does **not** call it in a loop: N days through here is 3N sequential
+   * round trips, which is what made `GET /today` take three seconds.
+   */
   async persistDailyRollup(
     userId: string,
     faithId: FaithId,
@@ -274,6 +318,26 @@ export class RollupService {
    * requires `/history` to return a cell for every day and a rollup that
    * exists only for active days would make "absent" ambiguous between "no
    * activity" and "not computed yet".
+   *
+   * ## Why this is three queries and not three per day
+   *
+   * It used to be `for (day of range) await persistDailyRollup(day)`, which is
+   * an event query, a goal query and an upsert **per day**: a 93-day `/today`
+   * was 282 sequential round trips against a `max: 10` pool from a serverless
+   * function, and a 28-day `/history` was 84. The window bound that preceded
+   * this change made that number look reasonable without changing its shape.
+   *
+   * The shape is now flat in the window:
+   *
+   *  1. every event in `[from, to]` in one query, grouped by `localDay`;
+   *  2. every goal effective on or before `to` in one query, walked with a
+   *     pointer as the days advance;
+   *  3. every existing rollup row in the window in one query, so that days
+   *     whose value has not moved are not rewritten.
+   *
+   * The three are issued together, so the read is one round trip's latency
+   * rather than three. Writes are then only the days that genuinely differ —
+   * on a steady-state `/today` that is zero or one.
    */
   async rebuildRange(
     userId: string,
@@ -281,11 +345,48 @@ export class RollupService {
     from: string,
     to: string,
   ): Promise<RollupSnapshot[]> {
-    const snapshots: RollupSnapshot[] = [];
-    for (let day = from; day <= to; day = addDays(day, 1)) {
-      snapshots.push(await this.persistDailyRollup(userId, faithId, day));
-    }
+    const lo = toUtcMidnight(from);
+    const hi = toUtcMidnight(to);
+
+    const [events, goals, existing] = await Promise.all([
+      this.prisma.activityEvent.findMany({
+        where: { userId, faithId, localDay: { gte: lo, lte: hi } },
+      }),
+      this.prisma.userGoal.findMany({
+        where: { userId, faithId, effectiveFrom: { lte: hi } },
+        orderBy: { effectiveFrom: 'asc' },
+      }),
+      this.prisma.dailyRollup.findMany({
+        where: { userId, faithId, localDay: { gte: lo, lte: hi } },
+      }),
+    ]);
+
+    const snapshots = computeRange(userId, faithId, from, to, groupByDay(events), goals);
+    await this.writeChanged(snapshots, existing);
     return snapshots;
+  }
+
+  /**
+   * Upsert only the days whose computed value differs from what is stored.
+   *
+   * §2.8 asks for days to be *computed* on read; it does not ask for a row to
+   * be rewritten to the value it already holds. Most days in a trailing window
+   * have no events and an identical rollup already, so the steady-state read
+   * path writes nothing at all. `computed_at` stops moving for those days,
+   * which is correct — nothing about them was recomputed into a new value —
+   * and nothing reads it (it is not in any §5/§6/§7 response).
+   *
+   * Issued together rather than in sequence: these are distinct primary keys
+   * with no ordering between them, exactly as the per-day loop's upserts were.
+   */
+  private async writeChanged(
+    snapshots: RollupSnapshot[],
+    existing: RollupRow[],
+  ): Promise<void> {
+    const stored = new Map(existing.map((row) => [toDayKey(row.localDay), row]));
+    const changed = snapshots.filter((s) => !isUnchanged(s, stored.get(s.localDay)));
+    if (!changed.length) return;
+    await Promise.all(changed.map((snapshot) => this.writeRollup(snapshot)));
   }
 
   /**
@@ -305,7 +406,7 @@ export class RollupService {
     faithId: FaithId,
     today: string,
   ): Promise<StreakSnapshot> {
-    return this.rebuildSince(userId, faithId, today, null);
+    return (await this.refresh(userId, faithId, today, null)).streak;
   }
 
   /**
@@ -313,9 +414,9 @@ export class RollupService {
    *
    * Identical in every respect but where the rebuild starts. Days older than
    * the floor are not recomputed, because nothing can change them — see
-   * `TODAY_REBUILD_WINDOW_DAYS` for the derivation — and `projectStreak` reads
-   * all persisted rollups regardless of the window, so their met-days still
-   * count toward the streak.
+   * `TODAY_REBUILD_WINDOW_DAYS` for the derivation — and the streak is
+   * projected over **every** persisted rollup regardless of the window, so
+   * their met-days still count toward the streak.
    *
    * This is what `GET /today` calls, and it is **not** a recovery path:
    * rebuilding an emptied `daily_rollups` table needs `rebuildAll`, which is
@@ -327,37 +428,118 @@ export class RollupService {
     today: string,
     windowDays: number = TODAY_REBUILD_WINDOW_DAYS,
   ): Promise<StreakSnapshot> {
-    return this.rebuildSince(userId, faithId, today, addDays(today, -windowDays));
+    return (await this.projectToday(userId, faithId, today, windowDays)).streak;
   }
 
   /**
-   * The body both entry points share: rebuild `[max(firstEventDay, floor),
-   * today]` and project. `floor` of `null` means "no floor" — the user's whole
-   * history.
+   * `rebuildRecent`, also handing back the two values `GET /today` would
+   * otherwise re-query: today's rollup and the goal in force today.
+   *
+   * Both are by-products of the window rebuild. `/today` used to follow the
+   * rebuild with `computeDailyRollup` (two round trips) and `findGoalInForce`
+   * (one more) for exactly the values the rebuild had already computed.
    */
-  private async rebuildSince(
+  async projectToday(
+    userId: string,
+    faithId: FaithId,
+    today: string,
+    windowDays: number = TODAY_REBUILD_WINDOW_DAYS,
+  ): Promise<TodayProjection> {
+    return this.refresh(userId, faithId, today, addDays(today, -windowDays));
+  }
+
+  /**
+   * The body every entry point shares: rebuild `[max(firstEventDay, floor),
+   * today]`, project the streak, and persist whatever actually changed.
+   * `floor` of `null` means "no floor" — the user's whole history.
+   *
+   * ## Why the reads are one batch and the writes are another
+   *
+   * Nothing read here is written here *before* it is read: the window's
+   * events, the goals, the persisted rollups and the persisted `StreakState`
+   * are all inputs, and the rebuild is a pure function of them. That is the
+   * same property the replay test asserts, and it is what lets the five reads
+   * go out together instead of in series. Against a serverless function whose
+   * round trip to RDS dominates everything else, five queries in one batch
+   * cost one round trip and five queries in sequence cost five.
+   *
+   * The streak is then projected over the persisted rollups **with this
+   * window's freshly computed days laid over them**, rather than by re-reading
+   * `daily_rollups` after writing. The two are the same set by construction —
+   * the overlay holds exactly the values the write would have stored — and
+   * this way the read does not have to wait for the write.
+   */
+  private async refresh(
     userId: string,
     faithId: FaithId,
     today: string,
     floor: string | null,
-  ): Promise<StreakSnapshot> {
-    // Still consulted when a floor is set, so a user who joined last week gets
-    // one row rather than a window's worth of empty days. §6.3's density
-    // requirement is `/history`'s, and `history()` rebuilds its own range.
-    const first = await this.prisma.activityEvent.findFirst({
-      where: { userId, faithId },
-      orderBy: { localDay: 'asc' },
-    });
+  ): Promise<TodayProjection> {
+    const hi = toUtcMidnight(today);
+    const lo = floor ? toUtcMidnight(floor) : null;
 
+    const [first, events, goals, persisted, existingStreak] = await Promise.all([
+      // Still consulted when a floor is set, so a user who joined last week
+      // gets one row rather than a window's worth of empty days. §6.3's
+      // density requirement is `/history`'s, and `history()` rebuilds its own
+      // range.
+      this.prisma.activityEvent.findFirst({
+        where: { userId, faithId },
+        orderBy: { localDay: 'asc' },
+      }),
+      this.prisma.activityEvent.findMany({
+        where: {
+          userId,
+          faithId,
+          localDay: lo ? { gte: lo, lte: hi } : { lte: hi },
+        },
+      }),
+      this.prisma.userGoal.findMany({
+        where: { userId, faithId, effectiveFrom: { lte: hi } },
+        orderBy: { effectiveFrom: 'asc' },
+      }),
+      // No date filter, exactly as before: days outside the window keep
+      // contributing their met-days to the streak, they merely stop being
+      // recomputed and rewritten.
+      this.prisma.dailyRollup.findMany({
+        where: { userId, faithId },
+        orderBy: { localDay: 'asc' },
+      }),
+      this.prisma.streakState.findUnique({
+        where: { userId_faithId: { userId, faithId } },
+      }),
+    ]);
+
+    const eventsByDay = groupByDay(events);
+    const goal = goalInForce(goals, today);
+
+    let days: RollupSnapshot[] = [];
     if (first) {
       const firstDay = toDayKey(first.localDay);
       const from = floor && floor > firstDay ? floor : firstDay;
       // A user whose only events are stamped in the future (clock tampering is
-      // accepted per §2.2) must not make this loop run backwards forever.
-      if (from <= today) await this.rebuildRange(userId, faithId, from, today);
+      // accepted per §2.2) must not make this range run backwards.
+      if (from <= today) {
+        days = computeRange(userId, faithId, from, today, eventsByDay, goals);
+      }
     }
 
-    return this.projectStreak(userId, faithId, today);
+    // `days` always ends on `today` when it is non-empty, because the range is
+    // `[from, today]`. The fallback covers the user with no events at all, who
+    // gets an empty day computed but — as before — no row written for it.
+    const day =
+      days.length && days[days.length - 1].localDay === today
+        ? days[days.length - 1]
+        : rollupFrom(userId, faithId, today, eventsByDay.get(today) ?? [], goal);
+
+    const streak = this.streakFrom(today, persisted, days, existingStreak);
+
+    await Promise.all([
+      this.writeChanged(days, persisted),
+      this.writeStreakState(userId, faithId, streak),
+    ]);
+
+    return { streak, day, goal };
   }
 
   // ---------------------------------------------------------------- streaks
@@ -376,32 +558,60 @@ export class RollupService {
     faithId: FaithId,
     today: string,
   ): Promise<StreakSnapshot> {
-    const rollups = await this.prisma.dailyRollup.findMany({
-      where: { userId, faithId },
-      orderBy: { localDay: 'asc' },
-    });
+    const [rollups, existing] = await Promise.all([
+      this.prisma.dailyRollup.findMany({
+        where: { userId, faithId },
+        orderBy: { localDay: 'asc' },
+      }),
+      this.prisma.streakState.findUnique({
+        where: { userId_faithId: { userId, faithId } },
+      }),
+    ]);
 
-    const metDays = rollups
-      .filter((r) => r.goalMet)
-      .map((r) => toDayKey(r.localDay))
+    const snapshot = this.streakFrom(today, rollups, [], existing);
+    await this.writeStreakState(userId, faithId, snapshot);
+    return snapshot;
+  }
+
+  /**
+   * The projection itself, over persisted rows plus any freshly computed days
+   * laid on top of them.
+   *
+   * `computed` wins over `persisted` for the same day, because it is what the
+   * accompanying write stores. Passing it in rather than re-reading
+   * `daily_rollups` after the write is what keeps the whole refresh to two
+   * round trips; the result is identical either way, which is the point.
+   */
+  private streakFrom(
+    today: string,
+    persisted: Array<{ localDay: Date | string; goalMet: boolean }>,
+    computed: RollupSnapshot[],
+    existing: { longest: number } | null,
+  ): StreakSnapshot {
+    const metByDay = new Map<string, boolean>();
+    for (const row of persisted) metByDay.set(toDayKey(row.localDay), row.goalMet);
+    for (const snapshot of computed) metByDay.set(snapshot.localDay, snapshot.goalMet);
+
+    const metDays = [...metByDay.entries()]
+      .filter(([, met]) => met)
+      .map(([day]) => day)
       // Future rollups must not count toward a streak that is "as of today",
       // and must not be able to become the anchor.
       .filter((day) => day <= today)
       .sort();
 
-    const computed = computeStreak(metDays, today);
-
-    const existing = await this.prisma.streakState.findUnique({
-      where: { userId_faithId: { userId, faithId } },
-    });
+    const projected = computeStreak(metDays, today);
 
     // §2.5 — `longest` never decreases. Everything else is recomputed outright,
     // so a wrong cached value self-heals on the next projection.
-    const snapshot: StreakSnapshot = {
-      ...computed,
-      longest: Math.max(computed.longest, existing?.longest ?? 0),
-    };
+    return { ...projected, longest: Math.max(projected.longest, existing?.longest ?? 0) };
+  }
 
+  private async writeStreakState(
+    userId: string,
+    faithId: FaithId,
+    snapshot: StreakSnapshot,
+  ): Promise<void> {
     const value = {
       current: snapshot.current,
       longest: snapshot.longest,
@@ -416,9 +626,143 @@ export class RollupService {
       create: { userId, faithId, ...value },
       update: value,
     });
-
-    return snapshot;
   }
+}
+
+// ---------------------------------------------------------------------------
+// The range rebuild, as pure functions of rows already fetched.
+// ---------------------------------------------------------------------------
+
+/** Events keyed by their `localDay`, so a window is grouped once, not re-queried daily. */
+function groupByDay(events: EventRow[]): Map<string, EventRow[]> {
+  const byDay = new Map<string, EventRow[]>();
+  for (const event of events) {
+    const key = toDayKey(event.localDay);
+    const bucket = byDay.get(key);
+    if (bucket) bucket.push(event);
+    else byDay.set(key, [event]);
+  }
+  return byDay;
+}
+
+/**
+ * The goal in force on `day`, from goals already fetched (§7.5).
+ *
+ * The in-memory twin of `RollupService.findGoalInForce`, and it must stay one:
+ * the latest `effectiveFrom <= day`, with **no `effectiveTo` predicate**. Read
+ * that method's comment before changing this — the range form
+ * `effective_to IS NULL OR effective_to > D` returns nothing at all for every
+ * day after a close that lost its insert, which reads as "no goal", which
+ * silently ends a streak with nothing in the logs.
+ *
+ * `goals` must be ascending by `effectiveFrom`. `@@unique([userId, faithId,
+ * effectiveFrom])` guarantees the order can never tie, so "the last one at or
+ * before `day`" is single-valued, exactly as the `ORDER BY ... DESC LIMIT 1`
+ * it replaces.
+ */
+function goalInForce(
+  goals: GoalRow[],
+  day: string,
+): { goalType: string; target: number } | null {
+  let found: GoalRow | null = null;
+  for (const goal of goals) {
+    if (toDayKey(goal.effectiveFrom) > day) break;
+    found = goal;
+  }
+  return found ? { goalType: found.goalType, target: found.target } : null;
+}
+
+/** One day's `RollupSnapshot` from its events and the goal in force on it. */
+function rollupFrom(
+  userId: string,
+  faithId: FaithId,
+  localDay: string,
+  events: EventRow[],
+  goal: { goalType: string; target: number } | null,
+): RollupSnapshot {
+  // §2.4 — SUM(quantity), never COUNT(events). Reading 12 verses in one
+  // event and in twelve events must be indistinguishable here, because to
+  // the user they are the same act of worship logged with different
+  // granularity. A count would make the Qur'an reader's batching strategy
+  // silently change whether a goal is met.
+  const counts: Record<string, number> = {};
+  for (const event of events) {
+    const quantity = typeof event.quantity === 'number' ? event.quantity : 0;
+    counts[event.activityType] = (counts[event.activityType] ?? 0) + quantity;
+  }
+  // §5.3 — "only activity types with a non-zero total appear as keys". A
+  // zero total cannot arise from the sum above (quantity >= 1), but a
+  // corrected or zero-quantity row must not leave a `0` key behind.
+  for (const key of Object.keys(counts)) {
+    if (counts[key] === 0) delete counts[key];
+  }
+
+  // §2.4 — no goal means `met: false`. The server never invents a default
+  // target; §7.4's consequence is explicit that 40 days of reading before a
+  // goal existed are 40 closed days of `goalMet: false`.
+  let goalMet = false;
+  if (goal) {
+    const countedActivity = GOAL_TYPE_ACTIVITY[goal.goalType];
+    const progress = countedActivity ? (counts[countedActivity] ?? 0) : 0;
+    goalMet = progress >= goal.target;
+  }
+
+  return { userId, faithId, localDay, counts, points: 0, goalMet };
+}
+
+/**
+ * Every day in `[from, to]`, dense, from rows already fetched.
+ *
+ * `goals` is walked with a forward pointer rather than searched per day: the
+ * days ascend and so do the goals, so the whole range costs one pass over a
+ * list that is almost always one element long.
+ */
+function computeRange(
+  userId: string,
+  faithId: FaithId,
+  from: string,
+  to: string,
+  eventsByDay: Map<string, EventRow[]>,
+  goals: GoalRow[],
+): RollupSnapshot[] {
+  const snapshots: RollupSnapshot[] = [];
+  let next = 0;
+  let inForce: { goalType: string; target: number } | null = null;
+
+  for (let day = from; day <= to; day = addDays(day, 1)) {
+    while (next < goals.length && toDayKey(goals[next].effectiveFrom) <= day) {
+      inForce = { goalType: goals[next].goalType, target: goals[next].target };
+      next += 1;
+    }
+    snapshots.push(
+      rollupFrom(userId, faithId, day, eventsByDay.get(day) ?? [], inForce),
+    );
+  }
+  return snapshots;
+}
+
+/**
+ * Is a computed day already stored with exactly this value?
+ *
+ * The three fields are the whole of what `writeRollup` writes. `computedAt` is
+ * deliberately not compared: it is the timestamp of the last write, so
+ * including it would make every day differ from itself and the skip would
+ * never fire.
+ */
+function isUnchanged(snapshot: RollupSnapshot, stored: RollupRow | undefined): boolean {
+  if (!stored) return false;
+  if (stored.goalMet !== snapshot.goalMet) return false;
+  if (stored.points !== snapshot.points) return false;
+  return sameCounts(stored.counts, snapshot.counts);
+}
+
+/** `counts` is a JSON column, so it comes back as an untyped value. */
+function sameCounts(stored: unknown, computed: Record<string, number>): boolean {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return false;
+  const left = stored as Record<string, unknown>;
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(computed).length) return false;
+  return keys.every((key) => left[key] === computed[key]);
 }
 
 // ---------------------------------------------------------------------------

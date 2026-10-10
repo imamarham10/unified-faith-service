@@ -129,9 +129,16 @@ export class ActivityReadService {
     const derived = localDayIn(timezone, this.now());
     const localDay = this.resolveLocalDayOverride(localDayRaw, derived);
 
-    const streak = await this.rollups.rebuildRecent(userId, faithId, localDay);
-    const day = await this.rollups.computeDailyRollup(userId, faithId, localDay);
-    const goal = await this.buildGoal(userId, faithId, localDay, day.counts);
+    // One refresh, and everything this response needs comes back with it.
+    // This used to be `rebuildRecent` followed by a fresh `computeDailyRollup`
+    // and a fresh `findGoalInForce` — three more round trips for values the
+    // rebuild had just computed and discarded.
+    const { streak, day, goal: inForce } = await this.rollups.projectToday(
+      userId,
+      faithId,
+      localDay,
+    );
+    const goal = buildGoal(inForce, day.counts);
 
     return {
       faithId,
@@ -348,35 +355,6 @@ export class ActivityReadService {
 
   // --------------------------------------------------------------- internals
 
-  /**
-   * The goal block of `/today` (§5.3), or `null`.
-   *
-   * `null` is keyed to "no `UserGoal` row in force on this day", **not** to
-   * "no events". A user who set a goal this morning and has recorded nothing
-   * gets `{progress: 0, met: false}` — an empty ring — while a user who has
-   * never set one gets `null` and the goal-setting prompt. §5.4 turns on the
-   * client being able to tell those apart.
-   */
-  private async buildGoal(
-    userId: string,
-    faithId: FaithId,
-    localDay: string,
-    counts: Record<string, number>,
-  ): Promise<TodayGoal | null> {
-    const goal = await this.rollups.findGoalInForce(userId, faithId, localDay);
-    if (!goal) return null;
-
-    const progress = progressFor(goal.goalType, counts);
-    return {
-      goalType: goal.goalType,
-      target: goal.target,
-      progress,
-      // Computed from the same `counts` and the same `progressFor` that
-      // `computeDailyRollup` uses for `goalMet`, so `/today`'s `goal.met` and
-      // `/history`'s `goalMet` for the same day cannot drift apart.
-      met: progress >= goal.target,
-    };
-  }
 
   /** §3 / §1.1 — `faithId` is required on every request in the contract. */
   private requireFaithId(value: unknown): FaithId {
@@ -522,6 +500,38 @@ export class ActivityReadService {
     );
     return 'UTC';
   }
+}
+
+/**
+ * The goal block of `/today` (§5.3), or `null`.
+ *
+ * `null` is keyed to "no `UserGoal` row in force on this day", **not** to
+ * "no events". A user who set a goal this morning and has recorded nothing
+ * gets `{progress: 0, met: false}` — an empty ring — while a user who has
+ * never set one gets `null` and the goal-setting prompt. §5.4 turns on the
+ * client being able to tell those apart.
+ *
+ * Takes the in-force goal rather than looking it up: `projectToday` has
+ * already read `user_goals` for the window it rebuilt, and a second
+ * `findGoalInForce` here would be one more serverless round trip for a row
+ * already in hand.
+ */
+function buildGoal(
+  goal: { goalType: string; target: number } | null,
+  counts: Record<string, number>,
+): TodayGoal | null {
+  if (!goal) return null;
+
+  const progress = progressFor(goal.goalType, counts);
+  return {
+    goalType: goal.goalType,
+    target: goal.target,
+    progress,
+    // Computed from the same `counts` and the same `progressFor` that
+    // `computeDailyRollup` uses for `goalMet`, so `/today`'s `goal.met` and
+    // `/history`'s `goalMet` for the same day cannot drift apart.
+    met: progress >= goal.target,
+  };
 }
 
 /**
