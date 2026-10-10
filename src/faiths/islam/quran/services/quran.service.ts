@@ -18,18 +18,51 @@ export class QuranService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  /**
+   * Which Unicode string `?script=` asks for.
+   *
+   * **`indopak` used to be an alias for `uthmani` here, and that was the
+   * bug.** IndoPak is an *encoding*, not a typeface: the subcontinental
+   * muṣḥaf writes different codepoints, not the same ones in a different
+   * font. 2:142 is `ٱلسُّفَهَآءُ` with U+0671 alef-wasla in Uthmani and
+   * `السُّفَهَآءُ` with a plain U+0627 in IndoPak, so no font can bridge the
+   * two. The mobile app defaults its Arabic-script preference to Indo-Pak and
+   * India is this app's primary market, which means the old aliasing served
+   * the wrong script to most of the userbase, by default, while naming the
+   * right one. See `docs/quran_script_provenance.md`.
+   *
+   * The fallback chain for `indopak` is deliberate rather than strict.
+   * `text_indopak` is nullable — a database that has taken the migration but
+   * not `prisma/seed-quran-scripts.ts` holds nulls — and a reader should see
+   * *a* muṣḥaf rather than an empty verse while that gap exists.
+   */
   private resolveArabicText(verse: any, script: ScriptType): string {
-    if (script === 'uthmani' || script === 'indopak') {
+    if (script === 'indopak') {
+      return verse.textIndopak || verse.textUthmani || verse.textArabic;
+    }
+    if (script === 'uthmani') {
       return verse.textUthmani || verse.textArabic;
     }
     return verse.textArabic;
   }
 
+  /**
+   * `textIndopak` is listed explicitly rather than riding along in `...rest`.
+   * Both script columns are destructured out and only the one that is part of
+   * the response contract is put back — otherwise adding a column to
+   * `quran_verses` silently changes the shape of every surah response.
+   *
+   * Additive: `textArabic` keeps the exact meaning it had (the script named
+   * by `?script=`), `textUthmani` and `textSimple` stay stripped as before,
+   * and `textIndopak` is new. Existing clients are unaffected; a client that
+   * wants both scripts side by side no longer needs a second request.
+   */
   private mapVerseScript(verse: any, script: ScriptType) {
-    const { textUthmani, textSimple, ...rest } = verse;
+    const { textUthmani, textSimple, textIndopak, ...rest } = verse;
     return {
       ...rest,
       textArabic: this.resolveArabicText(verse, script),
+      textIndopak: textIndopak ?? null,
     };
   }
 

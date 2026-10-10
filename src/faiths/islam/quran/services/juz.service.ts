@@ -184,6 +184,10 @@ export class JuzService {
         verseNumber: true,
         textArabic: true,
         textUthmani: true,
+        // Additive per `docs/contracts/quran-juz-api.md` §3. Nullable in the
+        // table, so it is mapped to an explicit `null` below rather than
+        // being allowed to come back `undefined` and vanish from the JSON.
+        textIndopak: true,
         translations: {
           where: this.translationWhere(options.translationId),
           select: { text: true },
@@ -208,6 +212,7 @@ export class JuzService {
         indexInJuz: skip + i + 1,
         textArabic: verse.textArabic,
         textUthmani: verse.textUthmani ?? null,
+        textIndopak: verse.textIndopak ?? null,
         translation: verse.translations[0]?.text ?? null,
       })),
     };

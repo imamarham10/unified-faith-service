@@ -45,6 +45,7 @@ interface FakeVerse {
   verseNumber: number;
   textArabic: string;
   textUthmani: string | null;
+  textIndopak: string | null;
   translations: {
     language: string;
     authorName: string;
@@ -67,6 +68,10 @@ function buildMushaf(): FakeVerse[] {
         // `text_uthmani` is nullable — the contract's `textUthmani` must
         // survive that as `null` rather than `undefined`.
         textUthmani: n % 2 === 0 ? null : `uth ${surahId}:${n}`,
+        // A *different* null pattern from `textUthmani` on purpose: the two
+        // columns are independently nullable in the table, and a shared
+        // pattern would let a mapping that returned the wrong one pass.
+        textIndopak: n % 3 === 0 ? null : `ind ${surahId}:${n}`,
         translations: [
           {
             language: 'en',
@@ -278,6 +283,9 @@ describe('GET /juz/:number — the reader (contract §2)', () => {
       indexInJuz: 1,
       textArabic: 'ar 2:142',
       textUthmani: null,
+      // 142 is even (no Uthmani) but not a multiple of 3, so this one row
+      // carries a null in one script column and a value in the other.
+      textIndopak: 'ind 2:142',
       translation: 'free 2:142',
     });
   });

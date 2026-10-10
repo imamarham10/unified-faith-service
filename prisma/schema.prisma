@@ -338,6 +338,12 @@ model QuranVerse {
   textArabic  String  @map("text_arabic") @db.Text
   textSimple  String  @map("text_simple") @db.Text
   textUthmani String? @map("text_uthmani") @db.Text
+  /// IndoPak encoding — a *different Unicode string* from `textUthmani`, not a
+  /// different font for it. See `docs/quran_script_provenance.md`. Nullable
+  /// for the same reason `textUthmani` is: the column is back-filled by
+  /// `prisma/seed-quran-scripts.ts` after the base Qur'an seed, so a database
+  /// that has had the migration but not the seed holds nulls here.
+  textIndopak String? @map("text_indopak") @db.Text
 
   surah           QuranSurah            @relation(fields: [surahId], references: [id])
   translations    QuranTranslation[]

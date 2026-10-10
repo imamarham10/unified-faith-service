@@ -46,7 +46,7 @@ class is valid, the value isn't.
     { "id": "…", "surahId": 2, "surahName": "Al-Baqarah",
       "verseNumber": 142,
       "indexInJuz": 1,
-      "textArabic": "…", "textUthmani": "…",
+      "textArabic": "…", "textUthmani": "…", "textIndopak": "…",
       "translation": "…" } ]
 }
 ```
@@ -72,3 +72,36 @@ let the assertions judge them — **do not hand-type 30 pairs and trust them.**
 Verse counts must be computed from the seeded `quran_verses` rows, never
 hardcoded alongside the boundaries, or assertion 1 checks the table against
 itself and proves nothing.
+
+## 3. Amendment 2026-10-10 — `textIndopak` (additive)
+
+**Added after both sides started, and notified as this section requires.**
+Purely additive: no field renamed, no field removed, no field's meaning
+changed. A client written against the original §2 keeps working untouched.
+
+`verses[].textIndopak` — `string | null` — the verse in the **IndoPak**
+encoding, alongside the Uthmani one that was already there.
+
+IndoPak is an **encoding, not a typeface.** The two scripts are different
+Unicode, so a client cannot derive one from the other by changing font — which
+is exactly the bug this field exists to fix. 2:142:
+
+| | |
+|---|---|
+| Uthmani (`textUthmani`) | `۞سَيَقُولُ ٱلسُّفَهَآءُ مِنَ ٱلنَّاسِ مَا وَلَّىٰهُمۡ …` |
+| IndoPak (`textIndopak`) | `سَيَقُوۡلُ السُّفَهَآءُ مِنَ النَّاسِ مَا وَلّٰٮهُمۡ …` |
+
+Alef-wasla `ٱ` (U+0671) against plain `ال`; dotless ya (U+066E); `ؕ` (U+0615)
+waqf marks instead of `ۚ`. No font bridges that.
+
+`null` is possible and must be handled: `quran_verses.text_indopak` is
+nullable, so a database that has taken migration
+`20261010120000_add_quran_indopak_script` but not run
+`prisma/seed-quran-scripts.ts` serves nulls. Fall back to `textUthmani`, then
+`textArabic` — the same chain `GET /surah/:id?script=indopak` uses server-side.
+
+**Rendering warning.** The IndoPak text carries ~1,360 Private Use Area
+codepoints (U+E003, U+E004, U+E01A–U+E01F, U+E021, U+E022) which are
+font-specific waqf glyphs, and it is **not** in Unicode NFC form. Both are
+deliberate and both are documented, with counts, in
+`docs/quran_script_provenance.md` — read that before rendering this field.
