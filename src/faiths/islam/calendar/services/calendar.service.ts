@@ -10,6 +10,22 @@ const CACHE_TTL = {
   HOUR: 60 * 60 * 1000,
 };
 
+/**
+ * One event as `HijriDateInfo.events` carries it.
+ *
+ * Exactly the four columns `getEventsForHijriDate` selects. The month
+ * calendars build their events from `getAllEvents()`, which returns whole
+ * rows, so the projection has to be explicit or the month response would
+ * quietly grow `id`, `hijriMonth`, `hijriDay` and friends that the per-date
+ * response never had.
+ */
+export interface IslamicEventSummary {
+  name: string;
+  nameArabic?: string;
+  description?: string;
+  importance: string;
+}
+
 export interface HijriDateInfo {
   hijriDay: number;
   hijriMonth: number;
@@ -17,12 +33,7 @@ export interface HijriDateInfo {
   hijriMonthName: string;
   gregorianDate: string;
   dayOfWeek: string;
-  events?: Array<{
-    name: string;
-    nameArabic?: string;
-    description?: string;
-    importance: string;
-  }>;
+  events?: IslamicEventSummary[];
 }
 
 export interface CalendarMonth {
@@ -149,20 +160,95 @@ export class CalendarService {
 
     const { hijriDay, hijriMonth, hijriYear } = this.localGregorianToHijriNumbers(lookupDate, calendarAdjust);
 
+    // Single-date lookups keep reading the table directly, so an event added
+    // today shows up on this path at once. The month calendars go through the
+    // week-cached `getAllEvents()` instead — see `getEventIndex`.
     const events = await this.getEventsForHijriDate(hijriMonth, hijriDay);
 
-    const result: HijriDateInfo = {
-      hijriDay,
-      hijriMonth,
-      hijriYear,
-      hijriMonthName: this.hijriMonthNames[hijriMonth - 1],
-      gregorianDate: dateStr,
+    const result = this.buildHijriInfo(
+      { hijriDay, hijriMonth, hijriYear },
+      dateStr,
       dayOfWeek,
-      events
-    };
+      events,
+    );
 
     await this.cacheManager.set(cacheKey, result, CACHE_TTL.DAY);
     return result;
+  }
+
+  /**
+   * Assemble one `HijriDateInfo`. Pure — no cache, no database.
+   *
+   * Extracted so the month calendars can build 30 days without 30 round
+   * trips. Both of them used to call the per-date methods in a loop, and each
+   * of those does a cache get, an events query and a cache set; a 31-day
+   * Gregorian month was ~93 sequential network calls, which is where its 21
+   * seconds came from. The conversion arithmetic itself is ~0.01ms a day.
+   */
+  private buildHijriInfo(
+    hijri: { hijriDay: number; hijriMonth: number; hijriYear: number },
+    gregorianDate: string,
+    dayOfWeek: string,
+    events: IslamicEventSummary[],
+  ): HijriDateInfo {
+    return {
+      hijriDay: hijri.hijriDay,
+      hijriMonth: hijri.hijriMonth,
+      hijriYear: hijri.hijriYear,
+      hijriMonthName: this.hijriMonthNames[hijri.hijriMonth - 1],
+      gregorianDate,
+      dayOfWeek,
+      events,
+    };
+  }
+
+  /**
+   * Every Islamic event, indexed by `hijriMonth:hijriDay`.
+   *
+   * One read of the week-cached `getAllEvents()` instead of one
+   * `getEventsForHijriDate` per day. `islamic_events` is small, static
+   * reference data — Ramadan, the two Eids, Ashura — and `getUpcomingEvents`
+   * has always read it this way; this extends the same treatment to the two
+   * month calendars.
+   *
+   * Projected to `IslamicEventSummary` because `getAllEvents()` returns whole
+   * rows while the per-date path selects four columns, and the two must
+   * produce the same `events` array for the same day.
+   */
+  private async getEventIndex(): Promise<Map<string, IslamicEventSummary[]>> {
+    const rows: Array<Record<string, any>> = await this.getAllEvents();
+    const index = new Map<string, IslamicEventSummary[]>();
+    for (const row of rows ?? []) {
+      const key = `${row.hijriMonth}:${row.hijriDay}`;
+      const summary: IslamicEventSummary = {
+        name: row.name,
+        nameArabic: row.nameArabic,
+        description: row.description,
+        importance: row.importance,
+      };
+      const bucket = index.get(key);
+      if (bucket) bucket.push(summary);
+      else index.set(key, [summary]);
+    }
+    return index;
+  }
+
+  /**
+   * The in-memory twin of `getEventsForHijriDate`, including its guard.
+   *
+   * The guard is not decoration: an undefined or NaN month/day would make
+   * Prisma drop the filter and return **every** event for that day, so the
+   * index lookup has to refuse the same inputs the query does.
+   */
+  private eventsOn(
+    index: Map<string, IslamicEventSummary[]>,
+    month: number,
+    day: number,
+  ): IslamicEventSummary[] {
+    if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || day < 1) {
+      return [];
+    }
+    return index.get(`${month}:${day}`) ?? [];
   }
 
   /**
@@ -177,6 +263,25 @@ export class CalendarService {
    *   each other (see gregorianToHijri's doc comment for the same convention).
    */
   async hijriToGregorian(year: number, month: number, day: number, timezone?: string, calendarAdjust: number = 0): Promise<HijriDateInfo> {
+    const events = await this.getEventsForHijriDate(month, day);
+    return this.fromHijri(year, month, day, timezone, calendarAdjust, events);
+  }
+
+  /**
+   * `hijriToGregorian` with its events already in hand. No database, no cache.
+   *
+   * The split exists for `getHijriMonthCalendar`: calling the public method
+   * per day meant one `islamic_events` query per day, which is the whole of
+   * that endpoint's 6.8 seconds. The date arithmetic is ~0.01ms.
+   */
+  private fromHijri(
+    year: number,
+    month: number,
+    day: number,
+    timezone: string | undefined,
+    calendarAdjust: number,
+    events: IslamicEventSummary[],
+  ): HijriDateInfo {
     const gregorianDate = hijriToGregorian({ year, month, day });
     // Build as UTC midnight (not local midnight) — the server can run in any
     // timezone (e.g. Asia/Calcutta, UTC+5:30), and a local-midnight Date's
@@ -187,18 +292,14 @@ export class CalendarService {
     const date = new Date(Date.UTC(gregorianDate.year, gregorianDate.month - 1, gregorianDate.day));
     date.setUTCDate(date.getUTCDate() + calendarAdjust);
 
-    const events = await this.getEventsForHijriDate(month, day);
     const { dateStr, dayOfWeek } = this.extractDateInTimezone(date, timezone);
 
-    return {
-      hijriDay: day,
-      hijriMonth: month,
-      hijriYear: year,
-      hijriMonthName: this.hijriMonthNames[month - 1],
-      gregorianDate: dateStr,
+    return this.buildHijriInfo(
+      { hijriDay: day, hijriMonth: month, hijriYear: year },
+      dateStr,
       dayOfWeek,
-      events
-    };
+      events,
+    );
   }
 
   /**
@@ -216,12 +317,31 @@ export class CalendarService {
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const days: HijriDateInfo[] = [];
 
+    // One read of the event index for the whole month. This loop used to call
+    // `gregorianToHijri` per day — a cache get, an events query and a cache
+    // set each — so a cold key was ~93 sequential network round trips and
+    // took 21 seconds. The month cache below was hiding that, not fixing it:
+    // every new month, every TTL expiry and every unseen timezone paid it.
+    const eventIndex = await this.getEventIndex();
+
     for (let day = 1; day <= daysInMonth; day++) {
       // Use Date.UTC so toISOString() always returns YYYY-MM-DD matching the calendar day,
       // regardless of server local timezone (avoids IST midnight → previous UTC day shift)
       const date = new Date(Date.UTC(year, month - 1, day));
-      const hijriInfo = await this.gregorianToHijri(date, timezone, calendarAdjust);
-      days.push(hijriInfo);
+      const { dateStr, dayOfWeek, year: y, month: m, day: d } =
+        this.extractDateInTimezone(date, timezone);
+      const hijri = this.localGregorianToHijriNumbers(
+        new Date(Date.UTC(y, m - 1, d)),
+        calendarAdjust,
+      );
+      days.push(
+        this.buildHijriInfo(
+          hijri,
+          dateStr,
+          dayOfWeek,
+          this.eventsOn(eventIndex, hijri.hijriMonth, hijri.hijriDay),
+        ),
+      );
     }
 
     const result: CalendarMonth = {
@@ -247,9 +367,26 @@ export class CalendarService {
     const daysInMonth = this.getHijriMonthLength(year, month);
     const days: HijriDateInfo[] = [];
 
+    // Deliberately NOT cached, unlike its Gregorian sibling. Every day of a
+    // Hijri month shares one `(month, day)` event lookup pattern, so the whole
+    // month is one read of the week-cached event index plus ~0.3ms of date
+    // arithmetic. A second cache layer over that would buy nothing and would
+    // add a key to invalidate — the asymmetry with
+    // `getGregorianMonthCalendar` is now simply that one of them no longer
+    // needs the crutch.
+    const eventIndex = await this.getEventIndex();
+
     for (let day = 1; day <= daysInMonth; day++) {
-      const hijriInfo = await this.hijriToGregorian(year, month, day, timezone, calendarAdjust);
-      days.push(hijriInfo);
+      days.push(
+        this.fromHijri(
+          year,
+          month,
+          day,
+          timezone,
+          calendarAdjust,
+          this.eventsOn(eventIndex, month, day),
+        ),
+      );
     }
 
     return {
