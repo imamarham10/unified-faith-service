@@ -105,6 +105,16 @@ interface RollupRow {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * How many rollup upserts may be in flight at once.
+ *
+ * Matched to `PrismaService`'s `max: 10` pg pool. Steady-state reads change
+ * zero or one day, so this only ever bites on a cold `daily_rollups` table,
+ * where it keeps a ninety-day rebuild from queueing ninety connection
+ * requests behind a 5s `connectionTimeoutMillis`.
+ */
+const WRITE_CONCURRENCY = 10;
+
+/**
  * How far back a **read** rebuilds before it stops rewriting rows that cannot
  * have changed. `rebuildRecent` uses it; `rebuildAll` does not.
  *
@@ -378,6 +388,11 @@ export class RollupService {
    *
    * Issued together rather than in sequence: these are distinct primary keys
    * with no ordering between them, exactly as the per-day loop's upserts were.
+   * In chunks of `WRITE_CONCURRENCY`, though, not all at once — the pg pool is
+   * `max: 10`, and a cold-table rebuild with ninety-odd genuinely new days
+   * would otherwise queue ninety connection requests against
+   * `connectionTimeoutMillis`. Chunking bounds what any one statement waits
+   * for to a single round trip, whatever the window.
    */
   private async writeChanged(
     snapshots: RollupSnapshot[],
@@ -385,8 +400,12 @@ export class RollupService {
   ): Promise<void> {
     const stored = new Map(existing.map((row) => [toDayKey(row.localDay), row]));
     const changed = snapshots.filter((s) => !isUnchanged(s, stored.get(s.localDay)));
-    if (!changed.length) return;
-    await Promise.all(changed.map((snapshot) => this.writeRollup(snapshot)));
+
+    for (let i = 0; i < changed.length; i += WRITE_CONCURRENCY) {
+      await Promise.all(
+        changed.slice(i, i + WRITE_CONCURRENCY).map((snapshot) => this.writeRollup(snapshot)),
+      );
+    }
   }
 
   /**
