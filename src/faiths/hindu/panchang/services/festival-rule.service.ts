@@ -45,7 +45,31 @@ export class FestivalRuleService {
       { timezone },
     );
     if (!panchang) return [];
-    const festivals = await this.prisma.hinduFestival.findMany();
+    return this.matchFestivals(await this.listFestivals(), panchang);
+  }
+
+  /**
+   * Every festival rule, as one read.
+   *
+   * `hindu_festivals` is small, static reference data and there is no
+   * predicate to push down — the rules are JSON and are matched in memory
+   * either way. Callers that resolve more than one day must read it once and
+   * hand it to `matchFestivals`, not call `findFestivalsForDate` per day: a
+   * month of that was 31 identical full-table reads.
+   */
+  async listFestivals(): Promise<HinduFestival[]> {
+    return this.prisma.hinduFestival.findMany();
+  }
+
+  /**
+   * Match already-loaded rules against an already-computed panchang.
+   *
+   * No database and no `getDailyPanchang`. The second half matters as much as
+   * the first: `getDailyPanchang` is ~7.7ms of astronomy, and
+   * `findFestivalsForDate` used to recompute it for a date whose panchang the
+   * caller had just computed — so every single-date request paid for it twice.
+   */
+  matchFestivals(festivals: HinduFestival[], panchang: any): HinduFestival[] {
     return festivals.filter((f) =>
       this.matchesPanchang(f.ruleSpec as unknown as RuleSpec, panchang),
     );
@@ -58,7 +82,7 @@ export class FestivalRuleService {
     lng: number,
     timezone: string,
   ): Promise<FestivalOccurrence[]> {
-    const festivals = await this.prisma.hinduFestival.findMany();
+    const festivals = await this.listFestivals();
     const occurrences: FestivalOccurrence[] = [];
     for (let i = 0; i < days; i++) {
       const d = new Date(fromDate);

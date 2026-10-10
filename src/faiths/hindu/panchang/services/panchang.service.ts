@@ -17,6 +17,7 @@ import {
   KARANA_NAMES,
   VAARA_NAMES,
 } from '../data/sanskrit-names';
+import { HinduFestival } from '@prisma/client';
 import { FestivalRuleService } from './festival-rule.service';
 
 /**
@@ -39,6 +40,54 @@ export class PanchangService {
     lng: number,
     timezone: string,
   ): Promise<PanchangResponseDto> {
+    return this.build(date, lat, lng, timezone, await this.festivalRuleService.listFestivals());
+  }
+
+  /**
+   * One civil month of panchang, in one festival read.
+   *
+   * This loop used to live in `PanchangController.getMonth`, and each
+   * iteration called `getPanchang`, which read the whole `hindu_festivals`
+   * table *and* computed `getDailyPanchang` a second time inside
+   * `findFestivalsForDate`. A 31-day month was therefore 31 full-table reads
+   * and 62 astronomical computations (~477ms of CPU on top of the round
+   * trips). It is one read and 31 computations now.
+   *
+   * In a service rather than a controller so it can be tested at all: a
+   * controller-level loop has no seam to assert the read count against.
+   */
+  async getPanchangMonth(
+    year: number,
+    month: number,
+    lat: number,
+    lng: number,
+    timezone: string,
+  ): Promise<{ year: number; month: number; days: PanchangResponseDto[] }> {
+    const festivals = await this.festivalRuleService.listFestivals();
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const days: PanchangResponseDto[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(
+        this.build(new Date(Date.UTC(year, month - 1, day)), lat, lng, timezone, festivals),
+      );
+    }
+    return { year, month, days };
+  }
+
+  /**
+   * Build one day's response from rules already loaded. No database.
+   *
+   * `getDailyPanchang` is computed exactly once here and the same result is
+   * used both for the response's angas and for festival matching, which is
+   * what `findFestivalsForDate` previously duplicated.
+   */
+  private build(
+    date: Date,
+    lat: number,
+    lng: number,
+    timezone: string,
+    festivalRules: HinduFestival[],
+  ): PanchangResponseDto {
     const result = getDailyPanchang(
       date,
       { latitude: lat, longitude: lng },
@@ -140,13 +189,9 @@ export class PanchangService {
       },
     };
 
-    // Festivals: resolve via FestivalRuleService (Bundle J).
-    const festivalRows = await this.festivalRuleService.findFestivalsForDate(
-      date,
-      lat,
-      lng,
-      timezone,
-    );
+    // Festivals: resolve via FestivalRuleService (Bundle J), against the
+    // panchang already computed above rather than a second computation of it.
+    const festivalRows = this.festivalRuleService.matchFestivals(festivalRules, result);
     const festivals: FestivalSummary[] = festivalRows.map((f) => ({
       slug: f.slug,
       nameEnglish: f.nameEnglish,

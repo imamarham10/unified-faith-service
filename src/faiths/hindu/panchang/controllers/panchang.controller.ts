@@ -68,13 +68,11 @@ export class PanchangController {
       throw new BadRequestException('month must be between 1 and 12');
     }
 
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const days = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(Date.UTC(year, month - 1, day));
-      days.push(await this.panchangService.getPanchang(date, lat, lng, timezone));
-    }
-    return { year, month, days };
+    // The per-day loop used to live here, calling `getPanchang` once per day —
+    // one full `hindu_festivals` read and two `getDailyPanchang` computations
+    // each. It belongs in the service, where the festival rules can be read
+    // once for the whole month and the loop can be tested.
+    return this.panchangService.getPanchangMonth(year, month, lat, lng, timezone);
   }
 
   @Public()
