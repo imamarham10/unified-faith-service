@@ -22,6 +22,7 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "migrate:users": "ts-node scripts/migrate-users-tables.ts",
     "prisma:seed:hadiths": "npx ts-node prisma/seed-hadiths.ts",
+    "prisma:verify:feelings": "npx ts-node prisma/verify-feelings-citations.ts",
     "prisma:seed:hindu-festivals": "npx ts-node prisma/seed-hindu-festivals.ts",
     "prisma:seed:hindu-gita": "npx ts-node prisma/seed-hindu-gita.ts",
     "prisma:seed:hindu-gita-full": "npx ts-node prisma/seed-hindu-gita-full.ts",
