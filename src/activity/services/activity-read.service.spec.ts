@@ -401,6 +401,41 @@ describe('ActivityReadService', () => {
         met: false,
       });
     });
+
+    it('takes the goal in force today, not a later one and not an earlier one', async () => {
+      // §7.5 — the goal block is resolved from the effective-dated rows, and
+      // the boundary is inclusive on `effectiveFrom <= today`. `/today` no
+      // longer runs its own `findGoalInForce`; it reads the goal the window
+      // rebuild already resolved, so the boundary has to be pinned here or a
+      // drift would silently change which target the ring is measured against.
+      atInstant('2026-10-08T06:00:00.000Z');
+      addGoal({ target: 10, effectiveFrom: '2026-10-01' });
+      addGoal({ target: 3, effectiveFrom: '2026-10-08' }); // today — in force
+      addGoal({ target: 1, effectiveFrom: '2026-10-09' }); // tomorrow — not yet
+      addEvent({ localDay: '2026-10-08', quantity: 4 });
+
+      const result = await service.today(USER, ISLAM, 'Asia/Kolkata');
+
+      expect(result.goal).toEqual({
+        goalType: 'verses',
+        target: 3,
+        progress: 4,
+        met: true,
+      });
+    });
+
+    it('reports no goal on a day that precedes the first goal row', async () => {
+      // §5.1's override moves the anchor back a day, which can land before a
+      // goal the user set this morning. The answer is `null` — the prompt —
+      // not the goal that starts tomorrow.
+      atInstant('2026-10-08T06:00:00.000Z');
+      addGoal({ target: 5, effectiveFrom: '2026-10-08' });
+
+      const result = await service.today(USER, ISLAM, 'Asia/Kolkata', '2026-10-07');
+
+      expect(result.localDay).toBe('2026-10-07');
+      expect(result.goal).toBeNull();
+    });
   });
 
   // ===================================== §2.5–§2.7 — the streak is recomputed
