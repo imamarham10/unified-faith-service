@@ -156,6 +156,13 @@ export class CollectionsService {
       estimatedMinutes: c.estimatedMinutes,
       priority: c.priority,
       sortOrder: c.sortOrder,
+      // Database-controlled home-screen placement. Several collections may be
+      // flagged at once; `sortOrder` above is what orders them when more than
+      // one is. Serialised from `summary()`, which is shared by both list
+      // endpoints and the detail endpoint, so the field appears everywhere a
+      // collection does. `?? false` keeps a row written before the migration
+      // (or a hand-built test double) from serialising `undefined`.
+      showOnHome: c.showOnHome ?? false,
       // Spec §5.4: provenance is user-visible through one "About this
       // collection" affordance, so it ships on the resource rather than
       // behind a second request.

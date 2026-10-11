@@ -410,8 +410,9 @@ function extractArrayLiteral(src: string, declName: string): string {
 /**
  * The seed's `CollectionSeed[]` normalised into the row shape the structural
  * checks take. Optional fields become `null`, exactly as the seed writes them.
- * `reviewStatus` is the seed's default — `draft` — because that is what a
- * plain `npm run prisma:seed:collections` writes.
+ * `reviewStatus` is the seed's own per-collection value, falling back to
+ * `draft` — that is what a plain `npm run prisma:seed:collections` writes on
+ * create.
  */
 export function loadSeedFile(file: string): CollectionRow[] {
   const src = fs.readFileSync(file, 'utf8');
@@ -428,7 +429,10 @@ export function loadSeedFile(file: string): CollectionRow[] {
     occasionConfig: s.occasionConfig ?? null,
     orderSemantics: s.orderSemantics ?? 'sequence',
     provenanceClass: s.provenanceClass,
-    reviewStatus: 'draft',
+    // The seed's own per-collection value, which is what a plain run writes on
+    // create. `nightly-recitation` and `gita-daily` carry `self_reviewed`
+    // there; everything else defaults to `draft`.
+    reviewStatus: s.reviewStatus ?? 'draft',
     isActive: true,
     items: (s.items ?? []).map((i: any) => ({
       sequence: i.sequence,
@@ -485,7 +489,7 @@ async function openDatabaseCorpus(): Promise<Corpus> {
   if (!databaseUrl) throw new Error('DATABASE_URL is not set');
 
   const pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString: databaseUrl.replace('sslmode=require', ''),
     ssl: { rejectUnauthorized: false },
     max: 2,
     connectionTimeoutMillis: 10000,

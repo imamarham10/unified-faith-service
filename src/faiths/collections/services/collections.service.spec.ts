@@ -121,6 +121,7 @@ const COLLECTION = {
   estimatedMinutes: 6,
   priority: 10,
   sortOrder: 10,
+  showOnHome: true,
   isActive: true,
 };
 
@@ -166,6 +167,81 @@ const verse = (surahId: number, verseNumber: number) => ({
   textUthmani: 'u',
   textIndopak: null,
   translations: [{ authorName: 'Saheeh International', language: 'en', text: 't' }],
+});
+
+describe('CollectionsService — showOnHome', () => {
+  /**
+   * Home-screen placement is controlled from the database, and the mobile
+   * client reads it off BOTH list endpoints and the detail endpoint. All
+   * three serialise through the same private `summary()`, so one field in
+   * one place covers them — these tests are what stops someone "tidying"
+   * that into three serialisers that drift.
+   *
+   * No database: `makePrisma` is a hand-built double, which is also why
+   * `?? false` matters in the service (a double written before this column
+   * existed would otherwise serialise `undefined`).
+   */
+  it('exposes showOnHome alongside sortOrder on the list endpoint', async () => {
+    const { prisma } = makePrisma({
+      collections: [
+        COLLECTION,
+        { ...COLLECTION, id: 'c2', slug: 'other', showOnHome: false, sortOrder: 20 },
+      ],
+      items: [baseItem({ sequence: 1 })],
+    });
+    const service = new CollectionsService(prisma);
+
+    const result = await service.getCollections('islam');
+
+    expect(result.map((c: any) => [c.slug, c.showOnHome, c.sortOrder])).toEqual([
+      ['nightly-recitation', true, 10],
+      ['other', false, 20],
+    ]);
+  });
+
+  it('exposes showOnHome on the detail endpoint too', async () => {
+    const { prisma } = makePrisma({
+      collections: [COLLECTION],
+      items: [baseItem({ sequence: 1 })],
+    });
+    const service = new CollectionsService(prisma);
+
+    const result: any = await service.getCollectionBySlug(
+      'islam',
+      'nightly-recitation',
+    );
+
+    expect(result.showOnHome).toBe(true);
+    expect(result.sortOrder).toBe(10);
+  });
+
+  it('serialises a row written before the migration as false, never undefined', async () => {
+    const { showOnHome, ...withoutColumn } = COLLECTION as any;
+    const { prisma } = makePrisma({
+      collections: [withoutColumn],
+      items: [baseItem({ sequence: 1 })],
+    });
+    const service = new CollectionsService(prisma);
+
+    const [row]: any = await service.getCollections('islam');
+
+    expect(row.showOnHome).toBe(false);
+  });
+
+  it('several collections may be flagged at once — it is not a single slot', async () => {
+    const { prisma } = makePrisma({
+      collections: [
+        COLLECTION,
+        { ...COLLECTION, id: 'c2', slug: 'friday-kahf', showOnHome: true },
+      ],
+      items: [baseItem({ sequence: 1 })],
+    });
+    const service = new CollectionsService(prisma);
+
+    const result = await service.getCollections('islam');
+
+    expect(result.filter((c: any) => c.showOnHome)).toHaveLength(2);
+  });
 });
 
 describe('CollectionsService — statement budget', () => {

@@ -24,6 +24,8 @@
     "prisma:seed:hadiths": "npx ts-node prisma/seed-hadiths.ts",
     "prisma:seed:quran-scripts": "npx ts-node prisma/seed-quran-scripts.ts",
     "prisma:verify:feelings": "npx ts-node prisma/verify-feelings-citations.ts",
+    "prisma:seed:feelings": "npx ts-node prisma/seed-feelings.ts",
+    "prisma:update:emotion-remedies": "npx ts-node prisma/scripts/update-emotion-remedies.ts",
     "prisma:seed:duas": "npx ts-node prisma/seed-duas-complete.ts",
     "prisma:seed:collections": "npx ts-node prisma/seed-collections.ts",
     "prisma:verify:collections": "npx ts-node prisma/verify-collection-citations.ts",

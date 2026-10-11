@@ -1376,6 +1376,22 @@ model Collection {
   estimatedMinutes Int?      @map("estimated_minutes")
   priority         Int       @default(0) // Today tie-break, higher wins
   sortOrder        Int       @default(0) @map("sort_order")
+  /// Database-controlled home-screen placement. **Several collections may be
+  /// flagged at once**; `sortOrder` (asc) is what orders them when more than
+  /// one is, which is why this is a plain boolean and not a nullable slot
+  /// number. Exposed on both list endpoints and on the detail endpoint
+  /// alongside `sortOrder`.
+  ///
+  /// Additive and nullable-safe: `@default(false)` means every existing row
+  /// answers "no" without a backfill, and a client that has not learned the
+  /// field yet is unaffected.
+  ///
+  /// **Deploy the migration BEFORE the code.** Prisma selects every scalar of
+  /// a model on an unselected `findMany`, so the moment the code knows about
+  /// this column it is in the SELECT list of both collections endpoints — and
+  /// `vercel.json` runs no migration step. Code-before-migration is a 500 on
+  /// GET /api/v1/{islam,hindu}/collections, not a missing field.
+  showOnHome       Boolean   @default(false) @map("show_on_home")
   isActive         Boolean   @default(true) @map("is_active")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
