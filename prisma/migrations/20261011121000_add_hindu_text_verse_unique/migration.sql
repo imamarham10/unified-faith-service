@@ -1,0 +1,41 @@
+-- team/curated-collections-spec.md §1.3, second prerequisite fix.
+--
+-- ============================ READ BEFORE DEPLOYING ============================
+-- THIS MIGRATION CAN FAIL. It creates a UNIQUE index over a table that holds
+-- roughly 19,371 seeded Ramayana shlokas plus the Gita, and nothing has ever
+-- prevented a re-run of prisma/seed-ramayana.ts from inserting duplicates.
+-- CREATE UNIQUE INDEX over dirty data aborts, and Prisma then RECORDS the
+-- failure in _prisma_migrations. Every subsequent `prisma migrate deploy` --
+-- including future, unrelated migrations -- refuses with P3009 until a human
+-- runs:
+--     npx prisma migrate resolve --rolled-back 20261011121000_add_hindu_text_verse_unique
+-- That is the cost of attempting this one speculatively, and the reason it is
+-- split out of 20261011120000: migration A alone is safe, and is everything
+-- the collections feature needs.
+--
+-- Run this FIRST, against the target environment:
+--     npm run prisma:check:hindu-verse-dupes
+-- It is read-only. It prints duplicate groups, the rows involved, and the
+-- `chapter_id IS NULL` count. If it reports any duplicate group, STOP: decide
+-- per group which row survives (the script prints the ids and a candidate
+-- DELETE for review -- it never deletes anything itself).
+--
+-- KNOWN HOLE, not an oversight: hindu_text_verses.chapter_id is NULLable and
+-- Postgres unique indexes treat NULLs as distinct, so this index does NOT bind
+-- rows whose chapter_id is NULL -- precisely the shape a bulk Ramayana import
+-- is most likely to have. Closing it needs either
+--     CREATE UNIQUE INDEX ... ON "hindu_text_verses"("text_id","chapter_id","verse_number") NULLS NOT DISTINCT;   -- PG15+
+-- or an additional partial index
+--     CREATE UNIQUE INDEX ... ON "hindu_text_verses"("text_id","verse_number") WHERE "chapter_id" IS NULL;
+-- Neither is expressible in Prisma's schema language, so either would show up
+-- as permanent drift in `prisma migrate diff`. Left out on purpose; tracked in
+-- the schema comment on HinduTextVerse.
+--
+-- This migration is split out from 20261011120000 so a dirty table cannot
+-- block the collections tables. Nothing in the collections feature depends on
+-- this index; it is a data-integrity fix that merely makes the Hindu verse
+-- address as trustworthy as the Qur'an one.
+-- ===============================================================================
+
+-- CreateIndex
+CREATE UNIQUE INDEX "hindu_text_verses_text_id_chapter_id_verse_number_key" ON "hindu_text_verses"("text_id", "chapter_id", "verse_number");

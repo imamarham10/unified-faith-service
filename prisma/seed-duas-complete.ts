@@ -238,6 +238,106 @@ const DUAS = [
     reference: "Quran — At-Tawbah 9:129, Abu Dawud 4/321" },
 ];
 
+/**
+ * `Dua.slug` back-fill — team/curated-collections-spec.md §1.3.
+ *
+ * `Dua` had no slug until 2026-10-11: it was addressable only by a
+ * per-environment uuid, so a `CollectionItem` that referenced a du'ā could not
+ * be written in a seed file and resolve anywhere but the machine that wrote
+ * it. The column was added NULLable because the table was already populated
+ * (a `NOT NULL` add on a populated table fails), so this is the other half of
+ * the fix and must run in every environment before any collection seeds a
+ * `refType: 'dua'` item.
+ *
+ * The slug is derived from `titleEnglish`, which is already this seed's
+ * identity key (`findFirst({ titleEnglish, categoryId })`), so the mapping is
+ * the same one the seed already relies on. It covers **every** row in the
+ * table, not just the ones listed in this file — `seed-islamic-features.ts`
+ * creates duas too.
+ *
+ * Determinism: rows are processed in `(titleEnglish, categoryName)` order and
+ * a collision falls back to `<category>-<title>`, then a numeric suffix. Two
+ * rows with the *same* title in the *same* category would order by uuid and
+ * so could take different suffixes in different environments — that is a data
+ * bug, and the function warns loudly rather than papering over it.
+ *
+ * Idempotent: a row that already has a slug keeps it, and its slug is
+ * reserved so a later row cannot be given the same one.
+ */
+function slugify(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")       // strip combining marks
+    .replace(/[''`’]/g, "")                 // Mu'awwidhat -> muawwidhat
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+}
+
+async function backfillSlugs() {
+  console.log("\nBack-filling Dua.slug (spec §1.3)...");
+
+  const categories = await (prisma as any).duaCategory.findMany();
+  const catName = new Map<string, string>(
+    categories.map((c: any) => [c.id, c.name]),
+  );
+  const rows = await (prisma as any).dua.findMany({
+    select: { id: true, slug: true, titleEnglish: true, categoryId: true },
+  });
+
+  const taken = new Set<string>(
+    rows.map((r: any) => r.slug).filter(Boolean) as string[],
+  );
+
+  const pending = rows
+    .filter((r: any) => !r.slug)
+    .sort((a: any, b: any) => {
+      const t = a.titleEnglish.localeCompare(b.titleEnglish);
+      if (t !== 0) return t;
+      const c = (catName.get(a.categoryId) ?? "").localeCompare(
+        catName.get(b.categoryId) ?? "",
+      );
+      if (c !== 0) return c;
+      return a.id.localeCompare(b.id); // only reachable on a duplicate row
+    });
+
+  let filled = 0;
+  const ambiguous: string[] = [];
+
+  for (const row of pending) {
+    const category = catName.get(row.categoryId) ?? "";
+    const base = slugify(row.titleEnglish);
+    const candidates = [base, slugify(`${category} ${row.titleEnglish}`)];
+    let slug = candidates.find((c) => c && !taken.has(c));
+    if (!slug) {
+      ambiguous.push(`${category} / ${row.titleEnglish}`);
+      let n = 2;
+      while (taken.has(`${base}-${n}`)) n++;
+      slug = `${base}-${n}`;
+    }
+    taken.add(slug);
+    await (prisma as any).dua.update({ where: { id: row.id }, data: { slug } });
+    console.log(`  = ${slug}`);
+    filled++;
+  }
+
+  console.log(
+    `Back-fill done — ${filled} slug(s) written, ${rows.length - filled} already had one.`,
+  );
+  if (ambiguous.length) {
+    console.warn(
+      "\n  !! Numeric suffixes were used for these rows. A numeric suffix is\n" +
+        "     NOT stable across environments — two rows sharing a title and a\n" +
+        "     category could take different suffixes elsewhere. Fix the duplicate\n" +
+        "     rows, or give them distinct titles, before referencing them from a\n" +
+        "     collection seed:",
+    );
+    for (const a of ambiguous) console.warn(`       - ${a}`);
+  }
+}
+
 async function main() {
   console.log("Seeding comprehensive duas...\n");
   const categories = await (prisma as any).duaCategory.findMany();
@@ -259,6 +359,7 @@ async function main() {
     const cat = categories.find((c: any) => c.id === row.categoryId);
     console.log(`  ${cat?.name ?? row.categoryId}: ${row._count.id}`);
   }
+  await backfillSlugs();
 }
 
 main().catch((e) => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());

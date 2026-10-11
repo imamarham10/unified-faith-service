@@ -33,15 +33,15 @@ model User {
   feedback      Feedback[]
 
   // Hindu module back-relations
-  hinduScriptureBookmarks    HinduScriptureBookmark[]
-  hinduFavoriteDeityNames    UserFavoriteDeityName[]
-  hinduFavoriteStotras       UserFavoriteStotra[]
-  hinduFavoriteTemples       UserFavoriteTemple[]
-  hinduFavoriteStories       UserFavoriteHinduStory[]
-  japaCounters               JapaCounter[]
-  japaGoals                  JapaGoal[]
-  japaHistory                JapaHistory[]
-  pujaLogs                   PujaLog[]
+  hinduScriptureBookmarks HinduScriptureBookmark[]
+  hinduFavoriteDeityNames UserFavoriteDeityName[]
+  hinduFavoriteStotras    UserFavoriteStotra[]
+  hinduFavoriteTemples    UserFavoriteTemple[]
+  hinduFavoriteStories    UserFavoriteHinduStory[]
+  japaCounters            JapaCounter[]
+  japaGoals               JapaGoal[]
+  japaHistory             JapaHistory[]
+  pujaLogs                PujaLog[]
 
   @@index([email])
   @@index([phone])
@@ -332,9 +332,9 @@ model QuranSurah {
 }
 
 model QuranVerse {
-  id          String @id @default(uuid())
-  surahId     Int    @map("surah_id")
-  verseNumber Int    @map("verse_number")
+  id          String  @id @default(uuid())
+  surahId     Int     @map("surah_id")
+  verseNumber Int     @map("verse_number")
   textArabic  String  @map("text_arabic") @db.Text
   textSimple  String  @map("text_simple") @db.Text
   textUthmani String? @map("text_uthmani") @db.Text
@@ -503,15 +503,32 @@ model IslamicEvent {
 // ============================================
 
 model Dua {
-  id            String @id @default(uuid())
-  categoryId    String @map("category_id")
-  titleArabic   String @map("title_arabic")
-  titleEnglish  String @map("title_english")
-  textArabic    String @map("text_arabic") @db.Text
-  textTranslit  String? @map("text_transliteration") @db.Text
-  textEnglish   String @map("text_english") @db.Text
-  reference     String?
-  audioUrl      String? @map("audio_url")
+  id           String  @id @default(uuid())
+  /// Stable, environment-independent address for a du'a.
+  ///
+  /// Added 2026-10-11 for curated collections (`team/curated-collections-spec.md`
+  /// §1.3): a `CollectionItem` with `refType: 'dua'` must be able to name a du'a
+  /// in a seed file, and `id` is a per-environment uuid — a seed that referenced
+  /// one would resolve on the machine that wrote it and nowhere else. `Stotra`
+  /// and `HinduText` already carry `slug @unique`; this closes the asymmetry.
+  ///
+  /// **Nullable on purpose, and only for now.** The 44 rows already in the
+  /// `duas` table predate the column, so `NOT NULL` could not be added without
+  /// a backfill inside the same migration. `prisma/seed-duas-complete.ts`
+  /// back-fills every row deterministically from `titleEnglish` (the same key
+  /// that seed already uses as a row's identity); tightening this to
+  /// `String @unique` is a one-line follow-up migration once the backfill has
+  /// run in every environment. Until then, resolvers must treat a null slug as
+  /// "not addressable from a seed", never as an error.
+  slug         String? @unique
+  categoryId   String  @map("category_id")
+  titleArabic  String  @map("title_arabic")
+  titleEnglish String  @map("title_english")
+  textArabic   String  @map("text_arabic") @db.Text
+  textTranslit String? @map("text_transliteration") @db.Text
+  textEnglish  String  @map("text_english") @db.Text
+  reference    String?
+  audioUrl     String? @map("audio_url")
 
   category DuaCategory @relation(fields: [categoryId], references: [id])
 
@@ -675,7 +692,6 @@ model QiblaCache {
   @@map("qibla_cache")
 }
 
-
 // ============================================
 // Islamic Features - Feelings / Emotions
 // ============================================
@@ -684,7 +700,7 @@ model Emotion {
   id        String          @id @default(uuid())
   name      String          @unique
   slug      String          @unique
-  icon      String?         // Emoji or icon name
+  icon      String? // Emoji or icon name
   remedies  EmotionRemedy[]
   createdAt DateTime        @default(now()) @map("created_at")
   updatedAt DateTime        @updatedAt @map("updated_at")
@@ -697,7 +713,7 @@ model EmotionRemedy {
   arabicText      String   @map("arabic_text") @db.Text
   transliteration String?  @db.Text
   translation     String   @db.Text
-  source          String   // e.g., "Quran 2:153", "Sahih Bukhari 1234"
+  source          String // e.g., "Quran 2:153", "Sahih Bukhari 1234"
   emotionId       String   @map("emotion_id")
   emotion         Emotion  @relation(fields: [emotionId], references: [id])
   createdAt       DateTime @default(now()) @map("created_at")
@@ -716,7 +732,7 @@ model Subscription {
   userId                 String    @map("user_id")
   razorpaySubscriptionId String    @unique @map("razorpay_subscription_id")
   razorpayPlanId         String    @map("razorpay_plan_id")
-  plan                   String    // 'monthly' | 'yearly'
+  plan                   String // 'monthly' | 'yearly'
   status                 String    @default("created") // created | authenticated | active | pending | halted | cancelled | completed
   currentPeriodStart     DateTime? @map("current_period_start")
   currentPeriodEnd       DateTime? @map("current_period_end")
@@ -741,15 +757,15 @@ model Subscription {
 // ----- Deities & Names -----
 
 model Deity {
-  id            String        @id @default(uuid())
-  slug          String        @unique
-  nameEnglish   String        @map("name_english")
-  nameSanskrit  String        @map("name_sanskrit")
-  family        String?       // 'vaishnava' | 'shaiva' | 'shakta' | 'smarta' | 'pan'
-  color         String?       // hex color for UI badge
-  traditions    String[]
-  createdAt     DateTime      @default(now()) @map("created_at")
-  names         DeityName[]
+  id           String      @id @default(uuid())
+  slug         String      @unique
+  nameEnglish  String      @map("name_english")
+  nameSanskrit String      @map("name_sanskrit")
+  family       String? // 'vaishnava' | 'shaiva' | 'shakta' | 'smarta' | 'pan'
+  color        String? // hex color for UI badge
+  traditions   String[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+  names        DeityName[]
 
   @@map("hindu_deities")
 }
@@ -772,12 +788,12 @@ model DeityName {
 }
 
 model UserFavoriteDeityName {
-  id           String     @id @default(uuid())
-  userId       String     @map("user_id")
-  deityNameId  String     @map("deity_name_id")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deityName    DeityName  @relation(fields: [deityNameId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  deityNameId String    @map("deity_name_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deityName   DeityName @relation(fields: [deityNameId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deityNameId])
   @@map("hindu_user_favorite_deity_names")
@@ -786,17 +802,17 @@ model UserFavoriteDeityName {
 // ----- Scriptures (Bhagavad Gita, Sahasranama, Chalisa, Upanishads) -----
 
 model HinduText {
-  id              String                   @id @default(uuid())
-  slug            String                   @unique
-  nameEnglish     String                   @map("name_english")
-  nameSanskrit    String                   @map("name_sanskrit")
-  type            String                   // 'gita' | 'sahasranama' | 'chalisa' | 'upanishad' | 'purana'
-  totalVerses     Int                      @map("total_verses")
-  isPremium       Boolean                  @default(false) @map("is_premium")
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  chapters        HinduTextChapter[]
-  verses          HinduTextVerse[]
-  audios          HinduTextAudio[]
+  id           String             @id @default(uuid())
+  slug         String             @unique
+  nameEnglish  String             @map("name_english")
+  nameSanskrit String             @map("name_sanskrit")
+  type         String // 'gita' | 'sahasranama' | 'chalisa' | 'upanishad' | 'purana'
+  totalVerses  Int                @map("total_verses")
+  isPremium    Boolean            @default(false) @map("is_premium")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  chapters     HinduTextChapter[]
+  verses       HinduTextVerse[]
+  audios       HinduTextAudio[]
 
   @@map("hindu_texts")
 }
@@ -830,46 +846,68 @@ model HinduTextVerse {
   bookmarks       HinduScriptureBookmark[]
   emotionRemedies HinduEmotionRemedy[]
 
+  /// Added 2026-10-11 (`team/curated-collections-spec.md` §1.3). Before this
+  /// there was only an `@@index` here, so a Hindu verse had **no stable
+  /// composite address** — the Qur'an side has had `@@unique([surahId,
+  /// verseNumber])` since the first migration — and nothing stopped a re-run of
+  /// `seed-ramayana.ts` from inserting a second copy of every shloka.
+  ///
+  /// **Known hole, deliberately documented rather than hidden.** `chapterId` is
+  /// nullable, and Postgres treats NULLs as distinct inside a unique index, so
+  /// this constraint does *not* bind rows with `chapter_id IS NULL` — exactly
+  /// the shape the bulk Ramayana import is most likely to have produced. The
+  /// fix (`NULLS NOT DISTINCT`, PG15+, or a partial unique index on
+  /// `(text_id, verse_number) WHERE chapter_id IS NULL`) is not expressible in
+  /// Prisma's schema language and would show as permanent drift, so it is left
+  /// as hand-written follow-up SQL. Run
+  /// `npm run prisma:check:hindu-verse-dupes` first: it counts both the
+  /// duplicate groups and the null-chapter rows.
+  ///
+  /// Note for collection addressing: `hinduTextSlug + chapterNumber +
+  /// verseStart` resolves through `HinduText.slug` and
+  /// `HinduTextChapter.@@unique([textId, chapterNumber])`, then this
+  /// constraint — the chapter uniqueness is what makes the path single-valued.
+  @@unique([textId, chapterId, verseNumber])
   @@index([textId, chapterId, verseNumber])
   @@map("hindu_text_verses")
 }
 
 model HinduTextTranslation {
-  id            String          @id @default(uuid())
-  verseId       String          @map("verse_id")
-  languageCode  String          @map("language_code")  // 'en' | 'hi' | 'sa' | 'ta' | 'bn'
-  authorName    String          @map("author_name")
-  text          String
-  isPremium     Boolean         @default(false) @map("is_premium")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  verse         HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+  id           String         @id @default(uuid())
+  verseId      String         @map("verse_id")
+  languageCode String         @map("language_code") // 'en' | 'hi' | 'sa' | 'ta' | 'bn'
+  authorName   String         @map("author_name")
+  text         String
+  isPremium    Boolean        @default(false) @map("is_premium")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  verse        HinduTextVerse @relation(fields: [verseId], references: [id], onDelete: Cascade)
 
   @@unique([verseId, languageCode, authorName])
   @@map("hindu_text_translations")
 }
 
 model HinduTextAudio {
-  id            String             @id @default(uuid())
-  textId        String             @map("text_id")
-  chapterId     String?            @map("chapter_id")
-  reciterSlug   String             @map("reciter_slug")
-  url           String
-  isPremium     Boolean            @default(false) @map("is_premium")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  text          HinduText          @relation(fields: [textId], references: [id], onDelete: Cascade)
-  chapter       HinduTextChapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  id          String            @id @default(uuid())
+  textId      String            @map("text_id")
+  chapterId   String?           @map("chapter_id")
+  reciterSlug String            @map("reciter_slug")
+  url         String
+  isPremium   Boolean           @default(false) @map("is_premium")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  text        HinduText         @relation(fields: [textId], references: [id], onDelete: Cascade)
+  chapter     HinduTextChapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   @@map("hindu_text_audio")
 }
 
 model HinduScriptureBookmark {
-  id          String          @id @default(uuid())
-  userId      String          @map("user_id")
-  verseId     String          @map("verse_id")
-  note        String?
-  createdAt   DateTime        @default(now()) @map("created_at")
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  verse       HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  verseId   String         @map("verse_id")
+  note      String?
+  createdAt DateTime       @default(now()) @map("created_at")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verse     HinduTextVerse @relation(fields: [verseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, verseId])
   @@map("hindu_scripture_bookmarks")
@@ -878,44 +916,44 @@ model HinduScriptureBookmark {
 // ----- Japa (mantra counter) -----
 
 model JapaCounter {
-  id             String     @id @default(uuid())
-  userId         String     @map("user_id")
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
   name           String
-  mantraSanskrit String?    @map("mantra_sanskrit")
-  mantraEnglish  String?    @map("mantra_english")
-  count          Int        @default(0)
-  targetCount    Int?       @map("target_count")
-  deityKey       String?    @map("deity_key")
-  isActive       Boolean    @default(true) @map("is_active")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
-  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mantraSanskrit String?  @map("mantra_sanskrit")
+  mantraEnglish  String?  @map("mantra_english")
+  count          Int      @default(0)
+  targetCount    Int?     @map("target_count")
+  deityKey       String?  @map("deity_key")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("hindu_japa_counters")
 }
 
 model JapaGoal {
-  id             String     @id @default(uuid())
-  userId         String     @map("user_id")
-  mantraSanskrit String     @map("mantra_sanskrit")
-  targetCount    Int        @map("target_count")
-  period         String     // 'daily' | 'weekly' | 'monthly'
-  startDate      DateTime   @map("start_date")
-  endDate        DateTime   @map("end_date")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  mantraSanskrit String   @map("mantra_sanskrit")
+  targetCount    Int      @map("target_count")
+  period         String // 'daily' | 'weekly' | 'monthly'
+  startDate      DateTime @map("start_date")
+  endDate        DateTime @map("end_date")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("hindu_japa_goals")
 }
 
 model JapaHistory {
-  id        String     @id @default(uuid())
-  userId    String     @map("user_id")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
   mantra    String
   count     Int
   date      DateTime
-  createdAt DateTime   @default(now()) @map("created_at")
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@map("hindu_japa_history")
@@ -924,16 +962,16 @@ model JapaHistory {
 // ----- Panchang (festivals + puja log) -----
 
 model HinduFestival {
-  id            String   @id @default(uuid())
-  slug          String   @unique
-  nameEnglish   String   @map("name_english")
-  nameSanskrit  String?  @map("name_sanskrit")
-  nameHindi     String?  @map("name_hindi")
-  ruleSpec      Json     @map("rule_spec")
-  deityKey      String?  @map("deity_key")
-  regions       String[]
-  description   String?
-  createdAt     DateTime @default(now()) @map("created_at")
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  nameEnglish  String   @map("name_english")
+  nameSanskrit String?  @map("name_sanskrit")
+  nameHindi    String?  @map("name_hindi")
+  ruleSpec     Json     @map("rule_spec")
+  deityKey     String?  @map("deity_key")
+  regions      String[]
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("hindu_festivals")
 }
@@ -941,9 +979,9 @@ model HinduFestival {
 model PujaLog {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
-  sandhya   String   // 'pratah' | 'madhyahna' | 'sayam'
+  sandhya   String // 'pratah' | 'madhyahna' | 'sayam'
   date      DateTime
-  status    String   // 'on_time' | 'late' | 'missed'
+  status    String // 'on_time' | 'late' | 'missed'
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -954,30 +992,30 @@ model PujaLog {
 // ----- Stotras / Aartis / Bhajans -----
 
 model StotraCategory {
-  id        String    @id @default(uuid())
-  slug      String    @unique
+  id        String   @id @default(uuid())
+  slug      String   @unique
   name      String
-  deityKey  String?   @map("deity_key")
-  createdAt DateTime  @default(now()) @map("created_at")
+  deityKey  String?  @map("deity_key")
+  createdAt DateTime @default(now()) @map("created_at")
   stotras   Stotra[]
 
   @@map("hindu_stotra_categories")
 }
 
 model Stotra {
-  id              String                @id @default(uuid())
-  categoryId      String                @map("category_id")
-  slug            String                @unique
-  titleSanskrit   String                @map("title_sanskrit")
-  titleEnglish    String                @map("title_english")
-  type            String                // 'stotra' | 'aarti' | 'bhajan'
-  deityKey        String?               @map("deity_key")
-  isPremium       Boolean               @default(false) @map("is_premium")
-  createdAt       DateTime              @default(now()) @map("created_at")
-  category        StotraCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  verses          StotraVerse[]
-  audios          StotraAudio[]
-  favorites       UserFavoriteStotra[]
+  id            String               @id @default(uuid())
+  categoryId    String               @map("category_id")
+  slug          String               @unique
+  titleSanskrit String               @map("title_sanskrit")
+  titleEnglish  String               @map("title_english")
+  type          String // 'stotra' | 'aarti' | 'bhajan'
+  deityKey      String?              @map("deity_key")
+  isPremium     Boolean              @default(false) @map("is_premium")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  category      StotraCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  verses        StotraVerse[]
+  audios        StotraAudio[]
+  favorites     UserFavoriteStotra[]
 
   @@map("hindu_stotras")
 }
@@ -996,22 +1034,22 @@ model StotraVerse {
 }
 
 model StotraTranslation {
-  id            String       @id @default(uuid())
-  verseId       String       @map("verse_id")
-  languageCode  String       @map("language_code")
-  text          String
-  verse         StotraVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+  id           String      @id @default(uuid())
+  verseId      String      @map("verse_id")
+  languageCode String      @map("language_code")
+  text         String
+  verse        StotraVerse @relation(fields: [verseId], references: [id], onDelete: Cascade)
 
   @@unique([verseId, languageCode])
   @@map("hindu_stotra_translations")
 }
 
 model StotraAudio {
-  id          String   @id @default(uuid())
-  stotraId    String   @map("stotra_id")
-  reciterSlug String   @map("reciter_slug")
+  id          String @id @default(uuid())
+  stotraId    String @map("stotra_id")
+  reciterSlug String @map("reciter_slug")
   url         String
-  stotra      Stotra   @relation(fields: [stotraId], references: [id], onDelete: Cascade)
+  stotra      Stotra @relation(fields: [stotraId], references: [id], onDelete: Cascade)
 
   @@map("hindu_stotra_audio")
 }
@@ -1031,9 +1069,9 @@ model UserFavoriteStotra {
 // ----- Temple locator -----
 
 model Temple {
-  id            String                @id @default(uuid())
+  id            String               @id @default(uuid())
   name          String
-  deityKey      String?               @map("deity_key")
+  deityKey      String?              @map("deity_key")
   lat           Float
   lng           Float
   address       String
@@ -1043,9 +1081,9 @@ model Temple {
   description   String?
   significance  String?
   photos        String[]
-  googlePlaceId String?               @map("google_place_id")
-  source        String                // 'curated' | 'google'
-  createdAt     DateTime              @default(now()) @map("created_at")
+  googlePlaceId String?              @map("google_place_id")
+  source        String // 'curated' | 'google'
+  createdAt     DateTime             @default(now()) @map("created_at")
   favorites     UserFavoriteTemple[]
 
   @@index([lat, lng])
@@ -1067,25 +1105,25 @@ model UserFavoriteTemple {
 // ----- Feelings (mood → Gita verse) -----
 
 model HinduEmotion {
-  id          String                 @id @default(uuid())
-  slug        String                 @unique
-  nameEnglish String                 @map("name_english")
-  nameHindi   String?                @map("name_hindi")
+  id          String               @id @default(uuid())
+  slug        String               @unique
+  nameEnglish String               @map("name_english")
+  nameHindi   String?              @map("name_hindi")
   icon        String?
-  createdAt   DateTime               @default(now()) @map("created_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
   remedies    HinduEmotionRemedy[]
 
   @@map("hindu_emotions")
 }
 
 model HinduEmotionRemedy {
-  id        String          @id @default(uuid())
-  emotionId String          @map("emotion_id")
-  verseId   String          @map("verse_id")
+  id        String         @id @default(uuid())
+  emotionId String         @map("emotion_id")
+  verseId   String         @map("verse_id")
   note      String?
-  sequence  Int             @default(0)
-  emotion   HinduEmotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
-  verse     HinduTextVerse  @relation(fields: [verseId], references: [id], onDelete: Cascade)
+  sequence  Int            @default(0)
+  emotion   HinduEmotion   @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  verse     HinduTextVerse @relation(fields: [verseId], references: [id], onDelete: Cascade)
 
   @@unique([emotionId, verseId])
   @@index([emotionId, sequence])
@@ -1095,52 +1133,52 @@ model HinduEmotionRemedy {
 // ----- Sacred Stories -----
 
 model HinduStoryCollection {
-  id          String          @id @default(uuid())
-  slug        String          @unique
-  name        String
-  sourceText  String          @map("source_text") // 'bhagavata_purana' | 'ramayana' | 'saint_lives' | 'panchatantra'
-  isPremium   Boolean         @default(false) @map("is_premium")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  stories     HinduStory[]
+  id         String       @id @default(uuid())
+  slug       String       @unique
+  name       String
+  sourceText String       @map("source_text") // 'bhagavata_purana' | 'ramayana' | 'saint_lives' | 'panchatantra'
+  isPremium  Boolean      @default(false) @map("is_premium")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  stories    HinduStory[]
 
   @@map("hindu_story_collections")
 }
 
 model HinduStory {
-  id            String                    @id @default(uuid())
-  collectionId  String                    @map("collection_id")
-  storyNumber   Int?                      @map("story_number")
-  title         String
-  summary       String
-  body          String
-  deityKey      String?                   @map("deity_key")
-  characters    String[]
-  createdAt     DateTime                  @default(now()) @map("created_at")
-  collection    HinduStoryCollection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  translations  HinduStoryTranslation[]
-  favorites     UserFavoriteHinduStory[]
+  id           String                   @id @default(uuid())
+  collectionId String                   @map("collection_id")
+  storyNumber  Int?                     @map("story_number")
+  title        String
+  summary      String
+  body         String
+  deityKey     String?                  @map("deity_key")
+  characters   String[]
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  collection   HinduStoryCollection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  translations HinduStoryTranslation[]
+  favorites    UserFavoriteHinduStory[]
 
   @@map("hindu_stories")
 }
 
 model HinduStoryTranslation {
-  id            String      @id @default(uuid())
-  storyId       String      @map("story_id")
-  languageCode  String      @map("language_code")
-  body          String
-  story         HinduStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid())
+  storyId      String     @map("story_id")
+  languageCode String     @map("language_code")
+  body         String
+  story        HinduStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, languageCode])
   @@map("hindu_story_translations")
 }
 
 model UserFavoriteHinduStory {
-  id        String      @id @default(uuid())
-  userId    String      @map("user_id")
-  storyId   String      @map("story_id")
-  createdAt DateTime    @default(now()) @map("created_at")
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  story     HinduStory  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  storyId   String     @map("story_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     HinduStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, storyId])
   @@map("hindu_user_favorite_stories")
@@ -1291,4 +1329,114 @@ model UserGoal {
   /// above can never tie. This is the only overlap a correct PUT can produce.
   @@unique([userId, faithId, effectiveFrom])
   @@map("user_goals")
+}
+
+// ============================================
+// Curated Collections (cross-faith)
+// team/curated-collections-spec.md §1.2
+// ============================================
+
+/// An **ordered**, **occasion-bound** sequence of devotional items, each
+/// carrying its own citation, its own repeat count and its own warrant for
+/// being in that sequence (spec §1.1).
+///
+/// Server-backed rather than a client constant because the hard repo rule is
+/// that scripture text never lives in the client (spec §0.2, §1.5): a
+/// Qur'an-only collection *could* be a constant since `(surahId, ayah)` is a
+/// stable reference, but the first item that is a du'ā, dhikr, stotra or
+/// mantra needs its text, and a uuid is not reproducible across environments.
+///
+/// House convention: the schema declares zero Prisma enums. Every vocabulary
+/// below is a `String` whose legal values are listed in a comment, with the
+/// real enumeration as a TypeScript const —
+/// `src/faiths/collections/collection-vocabulary.ts`.
+model Collection {
+  id               String    @id @default(uuid())
+  slug             String    @unique
+  faithId          String    @map("faith_id") // islam | hindu
+  title            String
+  subtitle         String?
+  description      String?   @db.Text
+  occasionType     String    @map("occasion_type") // nightly | morning | evening |
+  //                                                  after_prayer | weekday | hijri |
+  //                                                  panchang | festival | situational | evergreen
+  occasionConfig   Json?     @map("occasion_config") // spec §3.1 window shapes
+  orderSemantics   String    @default("sequence") @map("order_semantics") // sequence | set
+  provenanceClass  String    @map("provenance_class") // transmitted | assembled | thematic
+  reviewStatus     String    @default("draft") @map("review_status")
+  //                                                  draft | self_reviewed | scholar_approved |
+  //                                                  flagged | retired
+  //                           `draft` is NEVER served (spec §5.1) — both read
+  //                           queries filter it out, and so does the verifier.
+  curatedBy        String?   @map("curated_by")
+  curatedAt        DateTime? @map("curated_at")
+  reviewedBy       String?   @map("reviewed_by")
+  reviewedAt       DateTime? @map("reviewed_at")
+  artworkKey       String?   @map("artwork_key")
+  estimatedMinutes Int?      @map("estimated_minutes")
+  priority         Int       @default(0) // Today tie-break, higher wins
+  sortOrder        Int       @default(0) @map("sort_order")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  items CollectionItem[]
+
+  @@index([faithId, isActive, occasionType])
+  @@map("collections")
+}
+
+/// One item in a collection. The editorial unit of review is the **item**, not
+/// the collection (spec §5.2), which is why `citation`, `grading`,
+/// `translationSource` and `note` live here.
+///
+/// `repeatCount` is the field a Qur'an-shaped model would have missed and is
+/// **not optional** (spec §1.2). Morning adhkar is ×3/×7/×10/×100, and the
+/// seeded `Dua` rows currently encode counts in English prose inside
+/// `textEnglish` ("…Recite three times in the evening."), which is
+/// unrenderable, uncountable and untranslatable. It lives on the item rather
+/// than on `Dua` because the same du'ā carries a different count in different
+/// collections.
+model CollectionItem {
+  id           String @id @default(uuid())
+  collectionId String @map("collection_id")
+  /// 1..n, meaningful. Order is semantic, not presentational — there is no
+  /// shuffle and no "random item from this collection" (spec §1.1). The
+  /// `@@unique([collectionId, sequence])` below is what makes that structural.
+  sequence     Int
+  refType      String @map("ref_type") // surah | ayah_range | dua | dhikr |
+  //                                      allah_name | hadith |
+  //                                      hindu_verse_range | stotra | mantra | text
+
+  // Qur'an refs — resolved through QuranVerse.@@unique([surahId, verseNumber])
+  surahId   Int? @map("surah_id")
+  ayahStart Int? @map("ayah_start") // null + surahId   => whole surah
+  ayahEnd   Int? @map("ayah_end") // null + ayahStart => single ayah
+
+  // Hindu scripture refs — resolved through HinduText.slug then
+  // HinduTextChapter.@@unique([textId, chapterNumber])
+  hinduTextSlug String? @map("hindu_text_slug") // e.g. 'bhagavad-gita'
+  chapterNumber Int?    @map("chapter_number")
+  verseStart    Int?    @map("verse_start")
+  verseEnd      Int?    @map("verse_end")
+
+  // Slug-addressed rows (dua, stotra, mantra, dhikr)
+  refSlug String? @map("ref_slug")
+  /// uuid fallback. Seeds MUST prefer `refSlug` — a uuid is not reproducible
+  /// across environments, which is the whole reason `Dua.slug` exists.
+  refId   String? @map("ref_id")
+
+  repeatCount       Int     @default(1) @map("repeat_count")
+  label             String // 'Ayat al-Kursi'
+  note              String? @db.Text // one sentence, spec §5.3 rule 6
+  citation          String // 'Bukhari 2311'
+  grading           String? // sahih | hasan | daif | customary | not_applicable
+  translationSource String? @map("translation_source")
+  isOptional        Boolean @default(false) @map("is_optional")
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, sequence])
+  @@index([collectionId])
+  @@map("collection_items")
 }
