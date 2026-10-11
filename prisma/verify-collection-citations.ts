@@ -65,6 +65,7 @@ import {
   SERVABLE_REVIEW_STATUSES,
   WEAK_GRADINGS,
 } from '../src/faiths/collections/collection-vocabulary';
+import { runHadithContentGate } from './verify-hadith-content';
 
 const ARGV = process.argv.slice(2);
 const SELF_TEST = ARGV.includes('--self-test');
@@ -498,6 +499,9 @@ async function openDatabaseCorpus(): Promise<Corpus> {
     adapter: new PrismaPg(pool, prismaSchemaOptions(databaseUrl)),
   });
 
+  /** null = not probed, false = canonical columns absent (migration pending). */
+  let canonicalReady: boolean | null = null;
+
   return {
     describe: () => 'the database',
 
@@ -557,6 +561,28 @@ async function openDatabaseCorpus(): Promise<Corpus> {
     },
 
     async hadithExists(bookId: string, number: number) {
+      // A collection item's `citation` carries the CANONICAL number, which is
+      // not the sequential `hadithNumber` the table is keyed by: in Sahih
+      // Muslim the two disagree on 7,219 of 7,563 rows. Checking only the
+      // unique key would report "Muslim 807" as resolving — to the wrong
+      // hadith. Canonical first, sequential as the fallback for rows not yet
+      // backfilled and for the collections where the two coincide.
+      // The canonical columns arrive with the add_hadith_canonical_number
+      // migration; before it is applied this throws, so fall through to the
+      // sequential key rather than failing the run on deploy order.
+      if (canonicalReady !== false) {
+        try {
+          const canonical = await prisma.hadith.findFirst({
+            where: { bookId, canonicalNumber: number },
+            select: { id: true },
+          });
+          canonicalReady = true;
+          if (canonical) return true;
+        } catch {
+          canonicalReady = false;
+        }
+      }
+
       const hit = await prisma.hadith.findUnique({
         where: { bookId_hadithNumber: { bookId, hadithNumber: number } },
         select: { id: true },
@@ -1126,7 +1152,13 @@ function runSelfTest(): number {
 // ===========================================================================
 
 async function main(): Promise<number> {
-  if (SELF_TEST) return runSelfTest();
+  if (SELF_TEST) {
+    const own = await runSelfTest();
+    // The content gate's offline half, so this script's --self-test also
+    // proves the "resolves but misattributes" check without a database.
+    const content = await runHadithContentGate(true);
+    return own === EXIT_OK && content === EXIT_OK ? EXIT_OK : EXIT_FAIL;
+  }
 
   if (SEED_FILE_ONLY) {
     const file = path.join(__dirname, 'seed-collections.ts');
@@ -1185,7 +1217,15 @@ async function main(): Promise<number> {
       ...checkStructure(collections),
       ...(await checkCorpus(collections, corpus)),
     ];
-    return report(findings, corpus.describe());
+    const own = report(findings, corpus.describe());
+
+    // A collection item's `citation` is checked for resolution above. That is
+    // not the same as checking it points at the hadith it names — the gap the
+    // Sahih Muslim mis-numbering lived in. See prisma/verify-hadith-content.ts.
+    console.log('');
+    const content = await runHadithContentGate();
+
+    return own === EXIT_OK && content === EXIT_OK ? EXIT_OK : EXIT_FAIL;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`\n  Verification could not complete: ${message}\n`);

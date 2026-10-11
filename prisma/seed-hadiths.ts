@@ -36,10 +36,19 @@ interface BookConfig {
 }
 
 interface CDNHadith {
+  /** Sequential index over the whole edition, 1..n. NOT the citation number. */
   hadithnumber: number;
-  arabicnumber: number;
+  /**
+   * The canonical number, as a string: "807" or "807.02". For Sahih Muslim
+   * this is Abd al-Baqi numbering and differs completely from `hadithnumber`
+   * (which runs 1..7563 over narrations, while Abd al-Baqi runs 1..3033 over
+   * hadiths). Absent on rows the edition does not number — Muslim's Muqaddima,
+   * and a few stragglers.
+   */
+  arabicnumber?: string | number | null;
   text: string;
   grades: Array<{ name: string; grade: string }>;
+  /** `book` indexes `metadata.sections` directly — the only reliable chapter key. */
   reference: { book: number; hadith: number };
 }
 
@@ -205,31 +214,60 @@ async function fetchWithRetry(url: string, retries = 3): Promise<any> {
 }
 
 /**
- * Build a lookup: hadithnumber → section title
- * Uses section_details ranges from metadata
+ * Resolve a hadith's chapter title from its own `reference.book`.
+ *
+ * This replaces a range-scan over `metadata.section_details`, which was
+ * wrong. Those ranges overlap: in eng-muslim, section 43 ("The Book of
+ * Virtues") declares 384–6168 while section 16 ("The Book of Marriage")
+ * declares 388–3567, and 58 such overlaps exist in that edition alone.
+ * Filling a Map range by range in key order meant the highest-numbered
+ * overlapping section simply overwrote every section beneath it, so 5,785 of
+ * Muslim's 7,563 rows (76%) ended up labelled "The Book of Virtues" and only
+ * 16 of the edition's 57 sections survived. Tirmidhi (13 overlaps), Ibn Majah
+ * (10) and Bukhari (boundary gaps) were mislabelled the same way, less
+ * visibly.
+ *
+ * `reference.book` is a direct index into `metadata.sections` and is present
+ * and resolvable on 100% of rows in all ten seeded editions, recovering the
+ * full declared section list for each. Per-row assignment makes the broken
+ * ranges irrelevant.
  */
-function buildSectionLookup(
+function sectionTitleFor(
+  hadith: CDNHadith,
   metadata: CDNEdition["metadata"]
-): Map<number, string> {
-  const lookup = new Map<number, string>();
+): string | null {
   const sections = metadata.sections || {};
-  const details = metadata.section_details || {};
+  const key = hadith?.reference?.book;
+  if (key === undefined || key === null) return null;
+  const title = sections[String(key)];
+  return title && title.trim() ? title.trim() : null;
+}
 
-  for (const [sectionKey, range] of Object.entries(details)) {
-    const title = sections[sectionKey] || "";
-    if (!title || !range.hadithnumber_first || !range.hadithnumber_last)
-      continue;
+/**
+ * Split the upstream `arabicnumber` into its canonical number and sub-index.
+ *
+ * "807"    -> { number: 807, suffix: 1 }
+ * "807.02" -> { number: 807, suffix: 2 }
+ * absent   -> null  (never guessed — an absent citation beats a wrong one)
+ */
+export function parseCanonicalNumber(
+  raw: string | number | null | undefined
+): { number: number; suffix: number } | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
 
-    for (
-      let num = range.hadithnumber_first;
-      num <= range.hadithnumber_last;
-      num++
-    ) {
-      lookup.set(num, title);
-    }
-  }
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(s);
+  if (!m) return null;
 
-  return lookup;
+  const number = parseInt(m[1], 10);
+  if (!Number.isFinite(number) || number <= 0) return null;
+
+  // "807.02" -> 2; an unsuffixed canonical number is the primary narration.
+  const suffix = m[2] === undefined ? 1 : parseInt(m[2], 10);
+  if (!Number.isFinite(suffix) || suffix <= 0) return null;
+
+  return { number, suffix };
 }
 
 /**
@@ -253,6 +291,8 @@ async function batchCreateHadiths(
   bookId: string,
   hadiths: Array<{
     hadithNumber: number;
+    canonicalNumber: number | null;
+    canonicalSuffix: number | null;
     chapterTitle: string | null;
     chapterTitleArabic: string | null;
     textArabic: string;
@@ -265,10 +305,12 @@ async function batchCreateHadiths(
   let inserted = 0;
   for (let i = 0; i < hadiths.length; i += batchSize) {
     const batch = hadiths.slice(i, i + batchSize);
-    await (prisma as any).hadith.createMany({
+    const res = await (prisma as any).hadith.createMany({
       data: batch.map((h) => ({
         bookId,
         hadithNumber: h.hadithNumber,
+        canonicalNumber: h.canonicalNumber,
+        canonicalSuffix: h.canonicalSuffix,
         chapterTitle: h.chapterTitle,
         chapterTitleArabic: h.chapterTitleArabic,
         textArabic: h.textArabic,
@@ -280,7 +322,10 @@ async function batchCreateHadiths(
       })),
       skipDuplicates: true,
     });
-    inserted += batch.length;
+    // createMany reports what it actually wrote; `skipDuplicates` means that
+    // is not always batch.length, and counting the input is how totalHadiths
+    // came to overstate four of the ten books.
+    inserted += typeof res?.count === "number" ? res.count : batch.length;
     if (hadiths.length > 100) {
       console.log(
         `    Inserted ${inserted}/${hadiths.length} (${Math.round((inserted / hadiths.length) * 100)}%)`
@@ -315,9 +360,11 @@ async function seedBook(config: BookConfig) {
     arabicMap.set(h.hadithnumber, h.text);
   }
 
-  // 3. Build section title lookups for chapter mapping
-  const engSectionLookup = buildSectionLookup(engData.metadata);
-  const araSectionLookup = buildSectionLookup(araData.metadata);
+  // 3. Index the Arabic edition by sequential number, so the Arabic chapter
+  //    title comes from the Arabic row's OWN reference.book rather than from
+  //    the English row's — the two editions do not share section indices.
+  const araBySeq = new Map<number, CDNHadith>();
+  for (const h of araHadiths) araBySeq.set(h.hadithnumber, h);
 
   // 4. Upsert book record
   const dbBook = await (prisma as any).hadithBook.upsert({
@@ -352,17 +399,30 @@ async function seedBook(config: BookConfig) {
   }
 
   // 6. Merge English + Arabic and prepare records
+  let missingCanonical = 0;
   const mergedHadiths = engHadiths.map((engH) => {
     const arabicText = arabicMap.get(engH.hadithnumber) || "";
-    const chapterTitle = engSectionLookup.get(engH.hadithnumber) || null;
-    const chapterTitleArabic = araSectionLookup.get(engH.hadithnumber) || null;
-    const grade = resolveGrade(engH.grades, config.defaultGrade);
-    const ref = engH.reference
-      ? `${config.name} ${engH.hadithnumber}`
+    const araH = araBySeq.get(engH.hadithnumber);
+
+    const chapterTitle = sectionTitleFor(engH, engData.metadata);
+    const chapterTitleArabic = araH
+      ? sectionTitleFor(araH, araData.metadata)
       : null;
+
+    const grade = resolveGrade(engH.grades, config.defaultGrade);
+
+    // The citation is the canonical number where the edition supplies one.
+    // Falling back to the sequential index is what shipped the Sahih Muslim
+    // mis-numbering, so there is no fallback: an unnumbered row gets no
+    // citation string rather than a confidently wrong one.
+    const canonical = parseCanonicalNumber(engH.arabicnumber);
+    if (!canonical) missingCanonical++;
+    const ref = canonical ? `${config.name} ${canonical.number}` : null;
 
     return {
       hadithNumber: engH.hadithnumber,
+      canonicalNumber: canonical ? canonical.number : null,
+      canonicalSuffix: canonical ? canonical.suffix : null,
       chapterTitle,
       chapterTitleArabic,
       textArabic: arabicText,
@@ -372,9 +432,37 @@ async function seedBook(config: BookConfig) {
     };
   });
 
+  const distinctChapters = new Set(
+    mergedHadiths.map((h) => h.chapterTitle).filter(Boolean)
+  ).size;
+  const declaredSections = Object.keys(engData.metadata.sections || {}).length;
+  console.log(
+    `  Chapters: ${distinctChapters} distinct / ${declaredSections} declared sections`
+  );
+  if (missingCanonical > 0) {
+    console.log(
+      `  Note: ${missingCanonical} rows carry no canonical number upstream (left NULL, not citable)`
+    );
+  }
+
   // 7. Batch insert
   console.log(`  Inserting ${mergedHadiths.length} hadiths...`);
   const count = await batchCreateHadiths(dbBook.id, mergedHadiths);
+
+  // 8. Record what was actually stored, not what was fetched. `totalHadiths`
+  //    is shown to readers as the size of the collection; seeding it from the
+  //    fetched array left Bukhari, Tirmidhi, Nasa'i and Ibn Majah overstating
+  //    their own contents by the rows skipDuplicates had dropped.
+  if (count !== engHadiths.length) {
+    console.log(
+      `  totalHadiths: ${engHadiths.length} fetched -> ${count} stored`
+    );
+  }
+  await (prisma as any).hadithBook.update({
+    where: { id: dbBook.id },
+    data: { totalHadiths: count },
+  });
+
   console.log(`  ✅ ${config.name}: ${count} hadiths seeded`);
 }
 

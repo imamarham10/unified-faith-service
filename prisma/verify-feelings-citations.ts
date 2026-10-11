@@ -40,6 +40,7 @@
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
+import { runHadithContentGate } from './verify-hadith-content';
 
 // ===========================================================================
 // 0. CLI
@@ -542,6 +543,8 @@ class DbCorpus implements Corpus {
   private prisma: any;
   private pool: any;
   private surahCache = new Map<number, SurahInfo | null>();
+  /** null = not probed, false = canonical columns absent (migration pending). */
+  private canonicalReady: boolean | null = null;
   private bookCache = new Map<string, BookCacheEntry | null>();
 
   private constructor(prisma: any, pool: any) {
@@ -656,11 +659,52 @@ class DbCorpus implements Corpus {
     const b = await this.book(canonicalName);
     const out = new Map<number, string>();
     if (!b) return out;
-    const rows = await this.prisma.hadith.findMany({
-      where: { bookId: b.id, hadithNumber: { in: numbers } },
-      select: { hadithNumber: true, textArabic: true },
-    });
-    for (const r of rows) out.set(r.hadithNumber, r.textArabic || '');
+
+    // A citation names a CANONICAL number, which is not the same as the
+    // sequential `hadithNumber` the corpus is ordered by — in Sahih Muslim
+    // they disagree on 7,219 of 7,563 rows. Resolve canonical-first (lowest
+    // `canonicalSuffix` is the primary narration) and fall back to the
+    // sequential number for rows not yet backfilled and for the nine
+    // collections where the two coincide.
+    //
+    // The map is keyed by the number that was ASKED for, never by the row's
+    // own `hadithNumber` — callers look up what they cited, and keying by the
+    // row would make every canonical hit silently invisible.
+    // The canonical columns arrive with the add_hadith_canonical_number
+    // migration. Before it is applied the query throws, so degrade to the
+    // sequential lookup rather than failing the whole run on deploy order —
+    // the pinned content gate is what reports the corpus as uncorrected.
+    if (this.canonicalReady !== false) {
+      try {
+        const canonicalRows = await this.prisma.hadith.findMany({
+          where: { bookId: b.id, canonicalNumber: { in: numbers } },
+          select: {
+            canonicalNumber: true,
+            canonicalSuffix: true,
+            textArabic: true,
+          },
+          orderBy: [{ canonicalNumber: 'asc' }, { canonicalSuffix: 'asc' }],
+        });
+        this.canonicalReady = true;
+        for (const r of canonicalRows) {
+          if (r.canonicalNumber === null) continue;
+          if (!out.has(r.canonicalNumber)) {
+            out.set(r.canonicalNumber, r.textArabic || '');
+          }
+        }
+      } catch {
+        this.canonicalReady = false;
+      }
+    }
+
+    const unresolved = numbers.filter((n) => !out.has(n));
+    if (unresolved.length > 0) {
+      const rows = await this.prisma.hadith.findMany({
+        where: { bookId: b.id, hadithNumber: { in: unresolved } },
+        select: { hadithNumber: true, textArabic: true },
+      });
+      for (const r of rows) out.set(r.hadithNumber, r.textArabic || '');
+    }
     return out;
   }
 
@@ -1407,7 +1451,14 @@ async function main(): Promise<number> {
     return EXIT_INFRA;
   }
 
-  if (SELF_TEST) return runSelfTest(books);
+  if (SELF_TEST) {
+    const own = await runSelfTest(books);
+    // The content gate's offline half runs here too: this script proves a
+    // citation *resolves*, and that is exactly what let the Sahih Muslim
+    // mis-numbering through. See prisma/verify-hadith-content.ts.
+    const content = await runHadithContentGate(true);
+    return own === EXIT_OK && content === EXIT_OK ? EXIT_OK : EXIT_FAILURES;
+  }
 
   let emotions: SeedEmotion[];
   try {
@@ -1452,7 +1503,14 @@ async function main(): Promise<number> {
     for (const { slug, remedy } of citations) {
       results.push(await verifyRemedy(slug, remedy, books, corpus));
     }
-    return report(results, books.aliasWarnings, corpus.describe());
+    const own = report(results, books.aliasWarnings, corpus.describe());
+
+    // Resolution is not attribution. Prove the pinned citations point where
+    // they claim before calling this corpus verified.
+    console.log('');
+    const content = await runHadithContentGate();
+
+    return own === EXIT_OK && content === EXIT_OK ? EXIT_OK : EXIT_FAILURES;
   } catch (err: any) {
     console.error('');
     console.error(`Database read failed: ${scrub(err?.message ?? String(err))}`);

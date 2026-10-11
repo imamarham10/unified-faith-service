@@ -39,7 +39,9 @@
     "prisma:seed:hindu-stotras": "npx ts-node prisma/seed-hindu-stotras.ts",
     "prisma:seed:hindu-temples": "npx ts-node prisma/seed-hindu-temples.ts",
     "prisma:seed:hindu-feelings": "npx ts-node prisma/seed-hindu-feelings.ts",
-    "prisma:seed:hindu-stories": "npx ts-node prisma/seed-hindu-stories.ts"
+    "prisma:seed:hindu-stories": "npx ts-node prisma/seed-hindu-stories.ts",
+    "prisma:verify:hadiths": "npx ts-node prisma/verify-hadith-content.ts",
+    "prisma:backfill:hadith-canonical": "npx ts-node prisma/scripts/backfill-hadith-canonical-numbers.ts"
   },
   "repository": {
     "type": "git",

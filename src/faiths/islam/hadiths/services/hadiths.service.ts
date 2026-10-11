@@ -124,9 +124,18 @@ export class HadithsService {
     // `context` is an additive key: mobile/web clients that only know the
     // flat hadith shape are unaffected. Nav fields power prev/next links and
     // related-hadith internal linking on the web (SEO crawl paths).
+    // `canonicalNumber` is the number a reader cites; `hadithNumber` is the
+    // edition's sequential reading key and is what ordering and prev/next
+    // rely on. They coincide everywhere except Sahih Muslim, where storing
+    // the sequential one as the citation is what made every Muslim citation
+    // point at the wrong hadith. Both are returned so clients can display the
+    // citation (`canonicalNumber ?? hadithNumber`) without re-deriving the
+    // rule — and this explicit select must carry it, or prev/next/related
+    // would silently fall back to the sequential number again.
     const navSelect = {
       id: true,
       hadithNumber: true,
+      canonicalNumber: true,
       chapterTitle: true,
       textEnglish: true,
     };

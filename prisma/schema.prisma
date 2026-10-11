@@ -591,10 +591,30 @@ model HadithBook {
 }
 
 model Hadith {
-  id                  String  @id @default(uuid())
-  bookId              String  @map("book_id")
-  hadithNumber        Int     @map("hadith_number")
-  chapterTitle        String? @map("chapter_title")
+  id     String @id @default(uuid())
+  bookId String @map("book_id")
+
+  /// The upstream edition's *sequential* index (1..n over the whole book).
+  /// This is a reading-order key, not a citation: it is what `orderBy` and
+  /// prev/next navigation rely on, and it is unique per book. For nine of the
+  /// ten seeded collections it coincides with the canonical number; for Sahih
+  /// Muslim it does not, which is why `canonicalNumber` exists.
+  hadithNumber Int @map("hadith_number")
+
+  /// The number a reader would cite — Abd al-Baqi for Sahih Muslim, and the
+  /// collection's own canonical numbering elsewhere. NOT unique: a canonical
+  /// number covers every narration of the same hadith (Muslim 715 has 26),
+  /// which is exactly why it cannot replace `hadithNumber`. NULL where the
+  /// upstream edition supplies no canonical number (e.g. Muslim's Muqaddima),
+  /// because a guessed citation is worse than an absent one.
+  canonicalNumber Int? @map("canonical_number")
+
+  /// The sub-index within a canonical number: "807.02" -> 2. 1 for an
+  /// unsuffixed canonical number. Citation lookup resolves to the lowest
+  /// suffix, which is the primary narration.
+  canonicalSuffix Int? @map("canonical_suffix")
+
+  chapterTitle String? @map("chapter_title")
   chapterTitleArabic  String? @map("chapter_title_arabic")
   textArabic          String  @map("text_arabic") @db.Text
   textEnglish         String  @map("text_english") @db.Text
@@ -608,6 +628,7 @@ model Hadith {
   @@unique([bookId, hadithNumber])
   @@index([bookId])
   @@index([grade])
+  @@index([bookId, canonicalNumber, canonicalSuffix])
   @@map("hadiths")
 }
 
