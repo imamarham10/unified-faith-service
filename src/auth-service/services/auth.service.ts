@@ -9,17 +9,6 @@ import { JwtPayload } from '../dto/jwt-payload.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 
-/**
- * User data structure (from users-service)
- * TODO: Replace with actual users-service client
- */
-interface UserData {
-  id: string;
-  email: string;
-  isActive: boolean;
-  isVerified: boolean;
-}
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -256,33 +245,32 @@ export class AuthService {
     // Verify OTP
     await this.otpService.verifyOtp(email, otp);
 
-    // TODO: Get user from users-service
-    // For testing: Use hardcoded user ID for imamarham10@gmail.com
-    // In production, replace with actual users-service call
-    let user: UserData;
-    
-    if (email === 'imamarham10@gmail.com') {
-      // Test user - this ID should match what's in user_roles table
-      // Run: npx ts-node scripts/test-setup.ts to get/create this ID
-      user = {
-        id: '00000000-0000-0000-0000-000000000001', // Test user ID - update after running test-setup.ts
-        email,
-        isActive: true,
-        isVerified: true,
-      };
-    } else {
-      // Placeholder for other users
-      user = {
-        id: 'user-uuid-placeholder',
-        email,
-        isActive: true,
-        isVerified: true,
-      };
+    // Resolve the real account, exactly as password login does.
+    //
+    // This used to hardcode an id: one test UUID for a single named address
+    // and the literal string 'user-uuid-placeholder' for everybody else. That
+    // put every OTP user on one shared identity — one set of jap counts, one
+    // profile, one sankalp — and since requestOtp does not check that the
+    // address belongs to anyone, any stranger could reach that shared account
+    // with an OTP sent to their own inbox.
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('No account for this email');
     }
 
-    // if (!user || !user.isActive) {
-    //   throw new UnauthorizedException('User not found or inactive');
-    // }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is inactive');
+    }
+
+    // Verifying an OTP proves control of the address, so the account counts
+    // as verified from here on.
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date(), isVerified: true },
+    });
 
     // Get user roles from database
     const userRoles = await this.prisma.userRole.findMany({
@@ -292,11 +280,22 @@ export class AuthService {
 
     const roleNames = userRoles.map((ur) => ur.role.name);
 
-    // If user has no roles, assign default 'user' role
+    // If user has no roles, assign the default one — and persist it, rather
+    // than pushing a name onto an array the database never hears about.
     if (roleNames.length === 0) {
-      // TODO: Get 'user' role ID and assign it
-      // For now, add default role
-      roleNames.push('user');
+      const defaultRole = await this.prisma.role.findUnique({
+        where: { name: 'user' },
+      });
+      if (defaultRole) {
+        await this.prisma.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: defaultRole.id,
+            assignedBy: null,
+          },
+        });
+        roleNames.push('user');
+      }
     }
 
     // Get permissions for roles
