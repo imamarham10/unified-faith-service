@@ -749,10 +749,30 @@ model EmotionRemedy {
 // ============================================
 
 model Subscription {
-  id                     String    @id @default(uuid())
-  userId                 String    @map("user_id")
-  razorpaySubscriptionId String    @unique @map("razorpay_subscription_id")
-  razorpayPlanId         String    @map("razorpay_plan_id")
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+
+  /// Who took the money. 'razorpay' is the original direct flow; 'revenuecat'
+  /// is a store purchase (Play Billing or Apple IAP) that RevenueCat verified
+  /// with the store and told us about over a webhook.
+  ///
+  /// Play's payments policy requires Play Billing for in-app digital content,
+  /// which is what Plus is — so a new subscription taken inside the Android
+  /// app is a 'revenuecat' row. Razorpay stays for the web flow, where the
+  /// policy does not apply.
+  provider String @default("razorpay")
+
+  /// Razorpay's ids. Nullable since a store purchase has neither.
+  razorpaySubscriptionId String? @unique @map("razorpay_subscription_id")
+  razorpayPlanId         String? @map("razorpay_plan_id")
+
+  /// RevenueCat's view of the purchase. `revenueCatUserId` is the app user id
+  /// we hand the SDK — our own `User.id` — which is how a webhook that
+  /// carries no email finds its account.
+  revenueCatUserId String? @map("revenuecat_user_id")
+  storeProductId   String? @map("store_product_id")
+  store            String? // 'PLAY_STORE' | 'APP_STORE'
+
   plan                   String // 'monthly' | 'yearly'
   status                 String    @default("created") // created | authenticated | active | pending | halted | cancelled | completed
   currentPeriodStart     DateTime? @map("current_period_start")
@@ -765,6 +785,7 @@ model Subscription {
 
   @@index([userId])
   @@index([status])
+  @@index([revenueCatUserId])
   @@map("subscriptions")
 }
 

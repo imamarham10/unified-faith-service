@@ -197,7 +197,10 @@ export class SubscriptionsService {
     }
   }
 
-  private async assignPremiumRole(userId: string) {
+  /// Public because the RevenueCat path grants the same entitlement from a
+  /// webhook. Two copies of "find the premium role and upsert it" is how the
+  /// two paths drift apart.
+  async assignPremiumRole(userId: string) {
     const premiumRole = await this.prisma.role.findUnique({
       where: { name: 'premium_user' },
     });
@@ -210,7 +213,7 @@ export class SubscriptionsService {
     });
   }
 
-  private async revokePremiumRole(userId: string) {
+  async revokePremiumRole(userId: string) {
     const premiumRole = await this.prisma.role.findUnique({
       where: { name: 'premium_user' },
     });
