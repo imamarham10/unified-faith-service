@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PanchangService } from '../services/panchang.service';
+import { RashifalService } from '../services/rashifal.service';
 import { FestivalRuleService } from '../services/festival-rule.service';
 import { PrismaService } from '../../../../common/utils/prisma.service';
 import { Public } from '../../../../auth-service/decorators/public.decorator';
@@ -17,6 +18,7 @@ import { Public } from '../../../../auth-service/decorators/public.decorator';
 export class PanchangController {
   constructor(
     private readonly panchangService: PanchangService,
+    private readonly rashifalService: RashifalService,
     private readonly festivalRuleService: FestivalRuleService,
     private readonly prisma: PrismaService,
   ) {}
@@ -30,6 +32,24 @@ export class PanchangController {
   ) {
     this.validateCoords(lat, lng);
     return this.panchangService.getPanchang(new Date(), lat, lng, timezone);
+  }
+
+  /**
+   * Today's rashifal for all twelve rashis.
+   *
+   * All twelve on purpose: the client picks its own. Asking for one would
+   * mean sending the user's rashi, and the privacy policy says it never
+   * leaves the phone.
+   */
+  @Public()
+  @Get('rashifal/today')
+  getRashifal(
+    @Query('lat', ParseFloatPipe) lat: number,
+    @Query('lng', ParseFloatPipe) lng: number,
+    @Query('timezone') timezone = 'UTC',
+  ) {
+    this.validateCoords(lat, lng);
+    return this.rashifalService.getToday(lat, lng, timezone);
   }
 
   @Public()
