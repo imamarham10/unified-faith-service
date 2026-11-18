@@ -7,9 +7,13 @@ import { Pool } from 'pg';
 /**
  * Seeds Hindi narration for the Bhagavad Gita — chapter-level audio of
  * Siraat's OWN सरल हिन्दी अनुवाद (see prisma/data/gita-hindi-siraat.json;
- * original translation, owned by Siraat), synthesized with the
- * hi-IN-MadhurNeural voice (edge-tts) and served same-origin from the web
- * app (`/audio/gita/hi/chNN.mp3`).
+ * original translation, owned by Siraat), narrated by the `Amit` voice of
+ * bodhan-ai/indic-speak and served same-origin from the web app
+ * (`/audio/gita/hi/chNN.mp3`).
+ *
+ * The MP3s come from scripts/generate-gita-hindi-audio.py — read its header
+ * before regenerating them. The July 2026 set was edge-tts output, which is
+ * not licensed for redistribution.
  *
  * Idempotent: keyed on (chapter, reciterSlug).
  */

@@ -11,3 +11,8 @@ dist
 Claude.md
 .neon
 .claude/settings.local.json
+
+scripts/.tts-cache
+scripts/out
+
+scripts/__pycache__

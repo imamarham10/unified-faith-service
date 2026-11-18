@@ -104,7 +104,10 @@ export class ScripturesService {
     'siraat-hindi-anuvad': {
       name: 'सरल हिन्दी अनुवाद — Siraat',
       language: 'hi',
-      credit: 'Siraat original translation · AI narration',
+      // Names the model, because the licence it ships under asks for the
+      // credit and because "AI narration" said nothing about which AI —
+      // which is how the previous voice stayed unexamined for four months.
+      credit: 'Siraat anuvad · Built with Indic-Speak from Bodhan AI / AI4Bharat',
       sortOrder: 10,
     },
     'edwin-arnold-librivox': {
